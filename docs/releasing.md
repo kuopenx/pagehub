@@ -29,4 +29,6 @@ Remove any previously uploaded binary archives and binary `checksums.txt` attach
 
 After installing a newer version from source, run `pagehub setup` on macOS to update the managed background executable. Restart foreground Linux instances separately. Homebrew's executable is never overwritten by Pagehub. Setup preserves pages, token, settings, and revisions, waits for health, and restores the prior executable/service configuration when startup fails. The legacy 0.2.0 launchd label migrates to `io.pagehub.agent` after successful startup.
 
+Setup also migrates a saved custom service label when `--service-name` changes. Readiness requires a Pagehub health response from the PID reported by launchd; an unrelated HTTP 200 response or redirect does not qualify. Local management clients pin the loopback authority and never follow redirects or use environment proxies.
+
 Settings currently use schema version 1. Existing page metadata without a revision is read as revision 1. Future page-format changes need fixtures, restart tests, and a rollback strategy before release.

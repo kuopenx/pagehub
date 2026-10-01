@@ -16,4 +16,6 @@ Pagehub 用于可信局域网上的可信 HTML。公开页面和 Dashboard 没�
 
 MCP 管理要求持久化 Bearer token、loopback 请求及合法 Host/Origin。不要把令牌发送到 LAN 地址，不要用公开代理暴露管理 endpoint，也不要把令牌放进 HTML artifact。客户端配置和数据目录属于本机私密文件。
 
+Pagehub 的 doctor 和验收客户端只向配置的数字 loopback 地址、端口及 MCP 路径发送凭据，禁用 HTTP 重定向和环境代理。
+
 后台安装使用 macOS 用户级 LaunchAgent，不关闭防火墙、不进行系统级安装，也不以 root 运行服务。Pagehub 只分发源码，Homebrew 和 Go 安装在本机构建可执行文件；不发布预编译二进制或安装包。源码安装不提供 Apple Developer ID 签名或公证声明。

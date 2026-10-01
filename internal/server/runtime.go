@@ -37,21 +37,32 @@ func Serve(ctx context.Context, dataDir string, port int) error {
 		return err
 	}
 	srv := &http.Server{Handler: NewApp(store, token, port), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second}
-	done := make(chan struct{})
-	defer close(done)
+	log.Printf("pagehub %s ready on port %d; %d pages loaded", version, port, store.Count())
+	return serveHTTP(ctx, srv, listener, 5*time.Second)
+}
+
+func serveHTTP(ctx context.Context, srv *http.Server, listener net.Listener, grace time.Duration) error {
+	serveDone := make(chan struct{})
+	shutdownDone := make(chan error, 1)
 	go func() {
 		select {
 		case <-ctx.Done():
-			shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			shutdown, cancel := context.WithTimeout(context.Background(), grace)
 			defer cancel()
-			_ = srv.Shutdown(shutdown)
-		case <-done:
+			err := srv.Shutdown(shutdown)
+			if err != nil {
+				_ = srv.Close()
+			}
+			shutdownDone <- err
+		case <-serveDone:
+			shutdownDone <- nil
 		}
 	}()
-	log.Printf("pagehub %s ready on port %d; %d pages loaded", version, port, store.Count())
-	err = srv.Serve(listener)
+	err := srv.Serve(listener)
+	close(serveDone)
+	shutdownErr := <-shutdownDone
 	if errors.Is(err, http.ErrServerClosed) {
-		return nil
+		return shutdownErr
 	}
 	return err
 }

@@ -16,4 +16,6 @@ Pagehub is for trusted HTML on a trusted LAN. Public pages and the Dashboard hav
 
 MCP management requires a persistent Bearer token, loopback requests and valid Host/Origin. Never send that token to a LAN URL, expose the MCP endpoint through a public proxy, or place the token in an HTML artifact. Client configuration files and the data directory are private local files.
 
+Pagehub's doctor and acceptance clients send credentials only to their configured numeric loopback authority and MCP path. They disable HTTP redirects and environment proxies.
+
 Background installation uses a macOS user LaunchAgent. It does not disable the firewall, request system-wide installation or run the service as root. Pagehub is distributed only as source; Homebrew and Go installations build the executable locally. No precompiled binaries or installers are published. Source installations make no Apple Developer ID signing or notarization claim.

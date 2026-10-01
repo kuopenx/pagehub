@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"github.com/kuopenx/pagehub/internal/config"
+	"github.com/kuopenx/pagehub/internal/localhttp"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -203,19 +206,33 @@ func (m Manager) Restart(ctx context.Context) error {
 	return m.Start(ctx)
 }
 func (m Manager) Wait(ctx context.Context) error {
-	client := &http.Client{Timeout: time.Second}
+	endpoint := fmt.Sprintf("http://127.0.0.1:%d/_health", m.Settings.Port)
+	client, err := localhttp.NewClient(endpoint, "", time.Second)
+	if err != nil {
+		return err
+	}
+	defer client.CloseIdleConnections()
 	deadline := time.NewTimer(10 * time.Second)
 	defer deadline.Stop()
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
 	for {
 		status, err := m.Status(ctx)
-		if err == nil && status.Running {
-			req, _ := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://127.0.0.1:%d/_health", m.Settings.Port), nil)
+		if err == nil && status.Running && status.PID > 0 {
+			req, _ := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 			resp, e := client.Do(req)
 			if e == nil {
+				var health struct {
+					Service, Status, Version string
+					PID                      int
+				}
+				decoder := json.NewDecoder(io.LimitReader(resp.Body, 4096))
+				decodeErr := decoder.Decode(&health)
+				var extra any
+				endErr := decoder.Decode(&extra)
 				resp.Body.Close()
-				if resp.StatusCode == 200 {
+				if decodeErr == nil && errors.Is(endErr, io.EOF) && resp.StatusCode == 200 &&
+					health.Service == "pagehub" && health.Status == "ok" && health.Version != "" && health.PID == status.PID {
 					return nil
 				}
 			}
@@ -254,32 +271,65 @@ func (m Manager) Install(ctx context.Context, source string) error {
 	if err != nil {
 		return err
 	}
-	legacy := m
-	legacy.Settings.ServiceName = config.LegacyLabel
-	var legacyPlist []byte
-	legacyRunning := false
-	if m.Settings.ServiceName == config.DefaultLabel {
-		legacyPlist, err = os.ReadFile(legacy.Plist())
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
+	// Migrate the stored label as well as the original legacy label. Snapshot
+	// both jobs before mutation so a failed rename restores the prior service.
+	stored, err := config.Load(m.DataDir)
+	if err != nil {
+		return err
+	}
+	type previousService struct {
+		manager    Manager
+		plist      []byte
+		registered bool
+	}
+	var previous []previousService
+	var labels []string
+	if exists[2] {
+		labels = append(labels, stored.ServiceName)
+	}
+	if m.Settings.ServiceName == config.DefaultLabel && (!exists[2] || stored.ServiceName != config.LegacyLabel) {
+		labels = append(labels, config.LegacyLabel)
+	}
+	for _, label := range labels {
+		if label == m.Settings.ServiceName {
+			continue
 		}
-		if err == nil {
-			if err = legacy.owned(); err != nil {
-				return err
+		prior := m
+		prior.Settings = stored
+		prior.Settings.ServiceName = label
+		plist, e := os.ReadFile(prior.Plist())
+		if errors.Is(e, os.ErrNotExist) {
+			if label == stored.ServiceName {
+				status, statusErr := prior.Status(ctx)
+				if statusErr != nil {
+					return statusErr
+				}
+				if status.Registered {
+					return errors.New("previous service has no owned LaunchAgent file; left unchanged")
+				}
 			}
-			status, e := legacy.Status(ctx)
-			if e != nil {
-				return e
-			}
-			legacyRunning = status.Registered
+			continue
 		}
+		if e != nil {
+			return e
+		}
+		if e = prior.owned(); e != nil {
+			return e
+		}
+		status, e := prior.Status(ctx)
+		if e != nil {
+			return e
+		}
+		previous = append(previous, previousService{prior, plist, status.Registered})
 	}
 	rollback := func(cause error) error {
 		recovery, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		problems := []error{cause}
 		if e := m.Stop(recovery); e != nil {
-			problems = append(problems, e)
+			// Never restore/start the old job while the replacement may still
+			// own the data directory. Leave the replacement files consistent.
+			return errors.Join(cause, fmt.Errorf("rollback could not stop replacement service; installation left in place: %w", e))
 		}
 		for i, path := range paths {
 			mode := os.FileMode(0600)
@@ -304,21 +354,21 @@ func (m Manager) Install(ctx context.Context, source string) error {
 				problems = append(problems, e)
 			}
 		}
-		if legacyPlist != nil {
-			if e := config.AtomicWrite(legacy.Plist(), legacyPlist, 0600); e != nil {
+		for _, prior := range previous {
+			if e := config.AtomicWrite(prior.manager.Plist(), prior.plist, 0600); e != nil {
 				problems = append(problems, e)
 			}
-			if legacyRunning {
-				if e := legacy.Start(recovery); e != nil {
+			if prior.registered {
+				if e := prior.manager.Start(recovery); e != nil {
 					problems = append(problems, e)
 				}
 			}
 		}
 		return errors.Join(problems...)
 	}
-	if legacyPlist != nil {
-		if err = legacy.Stop(ctx); err != nil {
-			return err
+	for _, prior := range previous {
+		if err = prior.manager.Stop(ctx); err != nil {
+			return rollback(err)
 		}
 	}
 	if err = m.Stop(ctx); err != nil {
@@ -343,8 +393,8 @@ func (m Manager) Install(ctx context.Context, source string) error {
 	if err = ready(ctx); err != nil {
 		return rollback(err)
 	}
-	if legacyPlist != nil {
-		if err = os.Remove(legacy.Plist()); err != nil {
+	for _, prior := range previous {
+		if err = os.Remove(prior.manager.Plist()); err != nil {
 			return rollback(err)
 		}
 	}

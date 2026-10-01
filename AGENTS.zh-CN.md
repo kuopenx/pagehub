@@ -12,6 +12,7 @@ Pagehub 是单文件 HTML artifact 服务，一个 Go 二进制提供 CLI、LAN 
 - `internal/server`：HTTP、MCP、嵌入 Dashboard、页面存储、修订号、补丁及日志。
 - `internal/service`：用户级 launchd 安装、启停、旧标签迁移与升级回滚。
 - `internal/clients`：Codex TOML、Claude JSON 配置；精确保留无关配置、拒绝覆盖其他 endpoint。
+- `internal/localhttp`：将管理请求固定在数字 loopback 地址和端口，禁用重定向及环境代理。
 - `internal/config`：设置 schema、校验、私有原子写入；`internal/buildinfo`：程序版本与构建信息。
 - `cmd/pagehub-verify`：使用隔离实例进行真实 CLI/MCP 验收；`examples`：自包含 HTML。
 - `.github/workflows`：CI 与源码 Release。不发布预编译可执行文件，不添加签名或公证工作流。

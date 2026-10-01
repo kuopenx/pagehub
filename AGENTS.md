@@ -12,6 +12,7 @@ Pagehub hosts single-file HTML artifacts. One Go executable provides the CLI, LA
 - `internal/server`: HTTP, MCP, embedded dashboard, storage, revisions, patches, and logging.
 - `internal/service`: user launchd installation, lifecycle, legacy migration, and upgrade rollback.
 - `internal/clients`: Codex TOML and Claude JSON; preserve unrelated configuration and reject foreign endpoints.
+- `internal/localhttp`: pin management requests to a numeric loopback authority; disable redirects and environment proxies.
 - `internal/config`: settings schema, validation, and private atomic writes; `internal/buildinfo`: version and build information.
 - `cmd/pagehub-verify`: real CLI/MCP acceptance using an isolated instance; `examples`: self-contained HTML.
 - `.github/workflows`: CI and source-only Releases. Do not publish precompiled executables or add signing/notarization workflows.

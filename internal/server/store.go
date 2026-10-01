@@ -68,7 +68,7 @@ func OpenStore(dataDir string) (*Store, error) {
 					return nil, err
 				}
 			} else if err == nil {
-				if err := os.RemoveAll(path); err != nil {
+				if err := s.retireBackup(id); err != nil {
 					return nil, err
 				}
 			} else {
@@ -76,7 +76,7 @@ func OpenStore(dataDir string) (*Store, error) {
 			}
 		} else if strings.HasPrefix(name, ".stage-") || strings.HasPrefix(name, ".trash-") {
 			if err := os.RemoveAll(path); err != nil {
-				return nil, err
+				log.Printf("obsolete page generation cleanup deferred: %v", err)
 			}
 		}
 	}
@@ -345,6 +345,9 @@ func (s *Store) commit(p *Page, reader io.Reader, replace bool) error {
 	live := filepath.Join(s.dir, p.ID)
 	backup := filepath.Join(s.dir, ".backup-"+p.ID)
 	if replace {
+		if err := s.retireBackup(p.ID); err != nil {
+			return err
+		}
 		if err := os.Rename(live, backup); err != nil {
 			return err
 		}
@@ -366,6 +369,30 @@ func (s *Store) commit(p *Page, reader io.Reader, replace bool) error {
 	return nil
 }
 
+// Once a live generation exists, its previous backup must never be recovered.
+// Rename before attempting cleanup: even an undeletable generation is now
+// unambiguously obsolete, across later updates, deletion and process restarts.
+func (s *Store) retireBackup(id string) error {
+	backup := filepath.Join(s.dir, ".backup-"+id)
+	if _, err := os.Lstat(backup); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	suffix, err := uuid()
+	if err != nil {
+		return err
+	}
+	trash := filepath.Join(s.dir, ".trash-"+suffix)
+	if err := os.Rename(backup, trash); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(trash); err != nil {
+		log.Printf("obsolete page generation cleanup deferred: %v", err)
+	}
+	return nil
+}
+
 func (s *Store) Delete(id string) error {
 	if !idPattern.MatchString(id) {
 		return errors.New("id must be a server-generated UUID")
@@ -374,6 +401,9 @@ func (s *Store) Delete(id string) error {
 	defer s.mu.Unlock()
 	if _, exists := s.pages[id]; !exists {
 		return ErrNotFound
+	}
+	if err := s.retireBackup(id); err != nil {
+		return err
 	}
 	live := filepath.Join(s.dir, id)
 	trash := filepath.Join(s.dir, ".trash-"+id)

@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"github.com/kuopenx/pagehub/internal/config"
 	"github.com/pelletier/go-toml/v2"
+	"github.com/pelletier/go-toml/v2/unstable"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strings"
 )
 
@@ -90,8 +90,44 @@ func (c Client) Change(connect bool) error {
 	return config.AtomicWrite(c.Path, next, 0600)
 }
 
-var targetHeader = regexp.MustCompile(`^\s*\[\s*mcp_servers\.(?:pagehub|"pagehub"|'pagehub')(?:\.[^\]]+)?\s*\]\s*(?:#.*)?$`)
-var anyHeader = regexp.MustCompile(`^\s*\[`)
+// Use parsed table keys and byte offsets, so examples inside multiline
+// strings cannot be mistaken for configuration. Retain unrelated bytes.
+func withoutPagehubTables(original []byte) ([]byte, bool, error) {
+	var parser unstable.Parser
+	parser.Reset(original)
+	var out bytes.Buffer
+	start, skip, found := 0, false, false
+	for parser.NextExpression() {
+		node := parser.Expression()
+		if node.Kind != unstable.Table && node.Kind != unstable.ArrayTable {
+			continue
+		}
+		keys := node.Key()
+		var names []string
+		offset := 0
+		for keys.Next() {
+			key := keys.Node()
+			if len(names) == 0 {
+				offset = int(key.Raw.Offset)
+			}
+			names = append(names, string(key.Data))
+		}
+		lineStart := bytes.LastIndexByte(original[:offset], '\n') + 1
+		if !skip {
+			out.Write(original[start:lineStart])
+		}
+		start = lineStart
+		skip = len(names) >= 2 && names[0] == "mcp_servers" && names[1] == "pagehub"
+		found = found || skip
+	}
+	if err := parser.Error(); err != nil {
+		return nil, false, err
+	}
+	if !skip {
+		out.Write(original[start:])
+	}
+	return out.Bytes(), found, nil
+}
 
 func decodeTOML(b []byte) (map[string]any, error) {
 	m := map[string]any{}
@@ -114,17 +150,11 @@ func (c Client) codex(original []byte, connect bool) ([]byte, error) {
 		return nil, err
 	}
 	var out strings.Builder
-	found, skip := false, false
-	for _, line := range strings.SplitAfter(string(original), "\n") {
-		trim := strings.TrimRight(line, "\r\n")
-		if anyHeader.MatchString(trim) {
-			skip = targetHeader.MatchString(trim)
-			found = found || skip
-		}
-		if !skip {
-			out.WriteString(line)
-		}
+	retained, found, err := withoutPagehubTables(original)
+	if err != nil {
+		return nil, err
 	}
+	out.Write(retained)
 	if entry != nil && !found {
 		return nil, errors.New("unsupported Codex pagehub table syntax; left unchanged")
 	}

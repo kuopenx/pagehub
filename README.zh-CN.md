@@ -58,6 +58,8 @@ go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 
 每条命令支持 `--help`。`--json` 提供机器可读结果；成功退出码为 0，操作失败为 1，参数解析或校验失败为 2。错误写入 stderr。`--data-dir`、`--port`、`--service-name` 可覆盖保存的设置；连接命令支持 `--config-file` 指定配置文件。
 
+在 `setup` 时修改 `--service-name`，会迁移该数据目录记录的服务；新进程通过健康检查后删除旧 LaunchAgent，启动失败则恢复原安装。健康检查会将 Pagehub 进程与 launchd 报告的 PID 核对。即使保存的设置损坏，`version` 仍能正常输出。
+
 服务默认监听 `0.0.0.0:8765` 的 IPv4。不同实例必须使用不同端口、数据目录和 service name。开发实例示例：
 
 ```sh

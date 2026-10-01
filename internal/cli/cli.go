@@ -9,6 +9,7 @@ import (
 	"github.com/kuopenx/pagehub/internal/buildinfo"
 	"github.com/kuopenx/pagehub/internal/clients"
 	"github.com/kuopenx/pagehub/internal/config"
+	"github.com/kuopenx/pagehub/internal/localhttp"
 	"github.com/kuopenx/pagehub/internal/server"
 	"github.com/kuopenx/pagehub/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -142,6 +143,33 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		fmt.Fprintln(errOut, "--config-file is only valid for connect/disconnect")
 		return 2
 	}
+	portSet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "port" {
+			portSet = true
+		}
+	})
+	if command == "version" {
+		settings := config.Default()
+		if portSet {
+			settings.Port = o.port
+		}
+		if o.label != "" {
+			settings.ServiceName = o.label
+		}
+		if err := settings.Validate(); err != nil {
+			fmt.Fprintln(errOut, err)
+			return 2
+		}
+		r := result{Command: command, Version: buildinfo.Version, Message: "commit=" + buildinfo.Commit + " date=" + buildinfo.Date}
+		if o.json {
+			_ = json.NewEncoder(out).Encode(r)
+		} else {
+			fmt.Fprintln(out, "pagehub", r.Version)
+			fmt.Fprintln(out, r.Message)
+		}
+		return 0
+	}
 	var err error
 	o.dir, err = filepath.Abs(o.dir)
 	if err != nil {
@@ -153,12 +181,6 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		fmt.Fprintln(errOut, err)
 		return 1
 	}
-	portSet := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "port" {
-			portSet = true
-		}
-	})
 	if portSet {
 		settings.Port = o.port
 	}
@@ -185,9 +207,6 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		return m.Wait(commandCtx)
 	}
 	switch command {
-	case "version":
-		r.Version = buildinfo.Version
-		r.Message = "commit=" + buildinfo.Commit + " date=" + buildinfo.Date
 	case "serve":
 		err = env.Serve(ctx, o.dir, settings.Port)
 		r.Message = "server stopped"
@@ -338,20 +357,17 @@ func lanURLs(port int) []string {
 	return out
 }
 
-type authTransport struct{ token string }
-
-func (a authTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	r = r.Clone(r.Context())
-	r.Header.Set("Authorization", "Bearer "+a.token)
-	return http.DefaultTransport.RoundTrip(r)
-}
 func diagnose(ctx context.Context, m service.Manager, home, url string) []Check {
 	checks := []Check{}
 	if m.GOOS == "darwin" {
 		s, err := m.Status(ctx)
 		checks = append(checks, Check{"service", err == nil && s.Running, fmt.Sprintf("registered=%t running=%t", s.Registered, s.Running)})
 	}
-	hc := &http.Client{Timeout: 3 * time.Second}
+	hc, err := localhttp.NewClient(url, "", 3*time.Second)
+	if err != nil {
+		return append(checks, Check{"http", false, "invalid local endpoint"})
+	}
+	defer hc.CloseIdleConnections()
 	req, _ := http.NewRequestWithContext(ctx, "GET", url+"_health", nil)
 	resp, err := hc.Do(req)
 	healthOK := false
@@ -371,7 +387,12 @@ func diagnose(ctx context.Context, m service.Manager, home, url string) []Check 
 	}
 	token := strings.TrimSpace(string(b))
 	client := mcp.NewClient(&mcp.Implementation{Name: "pagehub-doctor", Version: buildinfo.Version}, nil)
-	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: url + "_mcp", HTTPClient: &http.Client{Transport: authTransport{token}, Timeout: 5 * time.Second}, DisableStandaloneSSE: true}, nil)
+	mcpHTTP, err := localhttp.NewClient(url+"_mcp", token, 5*time.Second)
+	if err != nil {
+		return append(checks, Check{"mcp", false, "invalid local endpoint"})
+	}
+	defer mcpHTTP.CloseIdleConnections()
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: url + "_mcp", HTTPClient: mcpHTTP, DisableStandaloneSSE: true}, nil)
 	mcpOK := false
 	if err == nil {
 		defer session.Close()

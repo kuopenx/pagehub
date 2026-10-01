@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/kuopenx/pagehub/internal/localhttp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"io"
 	"net"
@@ -19,13 +20,6 @@ import (
 	"time"
 )
 
-type authTransport struct{ token string }
-
-func (a authTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	r = r.Clone(r.Context())
-	r.Header.Set("Authorization", "Bearer "+a.token)
-	return http.DefaultTransport.RoundTrip(r)
-}
 func must(err error) {
 	if err != nil {
 		panic(err)
@@ -89,6 +83,22 @@ func main() {
 			command("service", "start")
 			command("service", "restart")
 			checks = append(checks, "real macOS setup twice; service status/stop twice/start/restart")
+			oldLabel := label
+			probe, e := net.Listen("tcp4", "127.0.0.1:0")
+			must(e)
+			port = probe.Addr().(*net.TCPAddr).Port
+			probe.Close()
+			label += ".renamed"
+			common = []string{"--data-dir", temp, "--port", fmt.Sprint(port), "--service-name", label, "--json"}
+			command("setup")
+			_, e = exec.CommandContext(ctx, "launchctl", "print", fmt.Sprintf("gui/%d/%s", os.Getuid(), oldLabel)).CombinedOutput()
+			ensure(e != nil, "old LaunchAgent remained registered after rename")
+			home, e := os.UserHomeDir()
+			must(e)
+			_, e = os.Stat(filepath.Join(home, "Library", "LaunchAgents", oldLabel+".plist"))
+			ensure(os.IsNotExist(e), "old LaunchAgent plist remained after rename")
+			command("setup")
+			checks = append(checks, "real service label/port migration; old registration removed; repeated setup")
 		} else {
 			serveCtx, stop := context.WithCancel(context.Background())
 			cmd := exec.CommandContext(serveCtx, bin, "serve", "--data-dir", temp, "--port", fmt.Sprint(port))
@@ -103,7 +113,7 @@ func main() {
 		for _, name := range []string{"codex", "claude"} {
 			file := filepath.Join(temp, name+"-config")
 			if name == "codex" {
-				must(os.WriteFile(file, []byte("model = \"preserved\"\n[mcp_servers.other]\ncommand = \"preserved\"\n"), 0600))
+				must(os.WriteFile(file, []byte("developer_instructions = '''\nExample:\n[mcp_servers.pagehub]\nurl = 'example'\n'''\nmodel = \"preserved\"\n[mcp_servers.other]\ncommand = \"preserved\"\n"), 0600))
 			} else {
 				must(os.WriteFile(file, []byte(`{"number":9007199254740993,"mcpServers":{"other":{"command":"preserved"}}}`), 0600))
 			}
@@ -131,7 +141,10 @@ func main() {
 		token = strings.TrimSpace(string(b))
 	}
 	client := mcp.NewClient(&mcp.Implementation{Name: "pagehub-acceptance", Version: "0.3.0"}, nil)
-	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: base + "/_mcp", HTTPClient: &http.Client{Transport: authTransport{token}, Timeout: 15 * time.Second}, DisableStandaloneSSE: true}, nil)
+	mcpHTTP, err := localhttp.NewClient(base+"/_mcp", token, 15*time.Second)
+	must(err)
+	defer mcpHTTP.CloseIdleConnections()
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: base + "/_mcp", HTTPClient: mcpHTTP, DisableStandaloneSSE: true}, nil)
 	must(err)
 	defer session.Close()
 	tools, err := session.ListTools(ctx, nil)

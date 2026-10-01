@@ -29,4 +29,6 @@ Pagehub 只分发源码，支持 Homebrew、`go install` 和本地源码构建�
 
 从源码安装新版本后，macOS 使用 `pagehub setup` 更新托管的后台可执行文件，Linux 前台实例另行重启。Pagehub 不会覆盖 Homebrew 的可执行文件。Setup 保留页面、令牌、设置和修订号，等待健康检查，启动失败时恢复旧可执行文件及服务配置。旧 0.2.0 launchd 标签在成功启动后迁移为 `io.pagehub.agent`。
 
+修改 `--service-name` 时，Setup 也会迁移保存的自定义服务标签。就绪检查要求健康响应来自 launchd 报告的 Pagehub PID；其他服务返回 HTTP 200 或重定向均不算通过。本地管理客户端固定 loopback 地址和端口，禁止重定向，也不使用环境代理。
+
 设置目前使用 schema 版本 1，缺少修订号的旧页面元数据按 revision 1 读取。未来页面格式变化需要兼容性样本、重启验证和回滚策略，再发布。

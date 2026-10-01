@@ -58,6 +58,8 @@ Ask your MCP client to create a page, then open the returned URL or find it on t
 
 Every command supports `--help`. Use `--json` for machine-readable output. Exit codes are 0 for success, 1 for operation failure, and 2 for argument parsing or validation failure. Errors go to stderr. `--data-dir`, `--port`, and `--service-name` override saved settings; connection commands also accept `--config-file`.
 
+Changing `--service-name` during `setup` migrates the service recorded in that data directory, removes its old LaunchAgent after the new process passes health checks, and restores the previous installation if startup fails. Health checks verify the Pagehub process against launchd's PID. `version` works even when saved settings are damaged.
+
 The default listener is IPv4 `0.0.0.0:8765`. Separate instances need distinct ports, data directories, and service names. For a foreground development instance:
 
 ```sh

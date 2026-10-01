@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -108,7 +109,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/_health":
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodGet {
-			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "version": version, "pages": a.store.Count(), "protocol": "2026-07-28"})
+			_ = json.NewEncoder(w).Encode(map[string]any{"service": "pagehub", "pid": os.Getpid(), "status": "ok", "version": version, "pages": a.store.Count(), "protocol": "2026-07-28"})
 		}
 		return
 	case "/favicon.ico":
