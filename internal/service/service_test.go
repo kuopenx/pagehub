@@ -186,3 +186,47 @@ func TestLegacyMigrationAndRollback(t *testing.T) {
 		t.Fatal("legacy registration remains")
 	}
 }
+
+func TestRestartWaitsForRegistrationAndOldProcessExit(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	registered := true
+	unloading := false
+	polls := 0
+	processPolls := 0
+	bootstrap := false
+	m := Manager{Home: dir, DataDir: filepath.Join(dir, "data"), GOOS: "darwin", UID: 501, Settings: config.Default()}
+	m.PIDAlive = func(int) bool { processPolls++; return processPolls < 3 }
+	m.Run = func(ctx context.Context, name string, args ...string) (string, error) {
+		switch args[0] {
+		case "print":
+			if unloading {
+				polls++
+				if polls >= 3 {
+					registered = false
+				}
+			}
+			if !registered {
+				return "Could not find service", errors.New("missing")
+			}
+			return "state = running\n pid = 99999", nil
+		case "bootout":
+			unloading = true
+		case "bootstrap":
+			if registered || processPolls < 3 {
+				t.Fatal("bootstrap before old registration/process exited")
+			}
+			bootstrap = true
+			registered = true
+			unloading = false
+		}
+		return "", nil
+	}
+	_ = config.AtomicWrite(m.Plist(), m.plist(), 0600)
+	if err := m.Restart(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !bootstrap || polls < 3 || processPolls < 3 {
+		t.Fatal("restart skipped teardown wait")
+	}
+}

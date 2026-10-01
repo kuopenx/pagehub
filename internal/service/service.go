@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -33,6 +34,7 @@ type Manager struct {
 	Settings            config.Settings
 	Run                 Runner
 	Ready               func(context.Context) error
+	PIDAlive            func(int) bool
 }
 type Status struct {
 	Registered bool   `json:"registered"`
@@ -133,7 +135,39 @@ func (m Manager) Stop(ctx context.Context) error {
 		return errors.New("registered service has no owned LaunchAgent file; left unchanged")
 	}
 	_, err = m.runner()(ctx, "launchctl", "bootout", m.qualified())
-	return err
+	if err != nil {
+		return err
+	}
+	alive := m.PIDAlive
+	if alive == nil {
+		alive = func(pid int) bool {
+			if m.Run != nil || pid <= 0 {
+				return false
+			}
+			p, e := os.FindProcess(pid)
+			return e == nil && p.Signal(syscall.Signal(0)) == nil
+		}
+	}
+	deadline := time.NewTimer(10 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(25 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		current, e := m.Status(ctx)
+		if e != nil {
+			return e
+		}
+		if !current.Registered && !alive(s.PID) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-deadline.C:
+			return errors.New("service did not fully stop; not starting another process")
+		case <-tick.C:
+		}
+	}
 }
 func (m Manager) Start(ctx context.Context) error {
 	if err := m.check(); err != nil {
