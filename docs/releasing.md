@@ -1,36 +1,32 @@
 # Releasing Pagehub
 
+[English](releasing.md) · [简体中文](releasing.zh-CN.md)
+
+Pagehub is distributed only as source. Supported installation paths are Homebrew, `go install`, and a local source build. Never upload precompiled executables, installer packages, or binary archive/checksum attachments to a Release. Apple signing and notarization are not part of this release process.
+
 ## Prerequisites
 
-The release maintainer needs push and Releases permissions. The Homebrew tap is `kuopenx/homebrew-tap`; it contains a source-build formula, so normal Homebrew upgrades do not need a self-updater inside Pagehub.
+Maintainers need push and Release permissions. The Homebrew tap is [kuopenx/homebrew-tap](https://github.com/kuopenx/homebrew-tap); its formula builds a versioned source archive with Go. Pagehub has no self-updater.
 
-## Checks and publishing
+## Validate and publish
 
-1. Update `internal/buildinfo.Version`, release notes and relevant documentation.
-2. Run the CI checks and real disposable acceptance from [CONTRIBUTING.md](../CONTRIBUTING.md).
-3. Refresh `THIRD_PARTY_NOTICES.md` if dependencies changed.
-4. Validate packaging with `goreleaser check` and `goreleaser release --snapshot --clean`.
-5. Push an annotated `vX.Y.Z` tag. The Release workflow creates a **draft** with macOS/Linux arm64/amd64 archives and `checksums.txt`.
-6. Download and test the macOS archive. Optionally run the macOS signing workflow while the release is still a draft. Signing requires your own Apple Developer ID certificate and notarization credentials.
-7. Publish the draft after checking its assets. Update the tap formula's tag URL and source SHA256; run `brew install --build-from-source kuopenx/tap/pagehub` and `brew test kuopenx/tap/pagehub`.
+1. Update `internal/buildinfo.Version`, release notes, and documentation in both English and Simplified Chinese.
+2. Run the checks and real disposable acceptance in [CONTRIBUTING.md](../CONTRIBUTING.md). For workflow changes, also validate YAML and embedded shell syntax.
+3. Refresh `THIRD_PARTY_NOTICES.md` if dependencies changed. Review the diff for secrets and generated files.
+4. Push the commit and wait for macOS/Linux CI to succeed.
+5. Push an annotated `vX.Y.Z` tag pointing to that tested commit. The **Source release** workflow checks the tagged source, runs real acceptance, and creates a draft with installation instructions. It uploads no assets. Maintainers can also dispatch it manually with an existing tag.
+6. Inspect the draft and confirm its asset list is empty. Publish it after the workflow succeeds. GitHub automatically provides source ZIP and tar.gz links.
+7. Run the tap's **Update Pagehub formula** workflow, or wait for its daily schedule. It reads the latest published source release and updates the tag URL, source SHA256, and embedded commit. Verify source installation and `brew test kuopenx/tap/pagehub`.
+8. Verify `go install github.com/kuopenx/pagehub/cmd/pagehub@vX.Y.Z` in a temporary `GOBIN`, and check the installed version. The README's `@latest` follows the highest published Go module version tag; do not leave a failed release tag in place.
 
-Release tags must refer to commits that passed CI. Never modify an existing published tag. Version, Git commit and build date are embedded in release binaries. Software versions, per-page revisions and settings schema versions serve different purposes.
+Never move an existing published tag. Software versions, page revisions, and settings-schema versions are separate concepts. Source archives have no uploaded executable. Local builds report the source version; Homebrew also embeds the tagged commit.
 
-## Signing and notarization
+## Existing release cleanup
 
-[macos-sign.yml](../.github/workflows/macos-sign.yml) is an optional manual workflow for a draft release. Set these repository secrets:
-
-- `APPLE_CERTIFICATE_P12`: base64 encoded Developer ID Application certificate including private key.
-- `APPLE_CERTIFICATE_PASSWORD`: certificate password.
-- `APPLE_SIGNING_IDENTITY`: Developer ID Application signing identity.
-- `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`: notarization credentials.
-
-The workflow signs both macOS binaries with hardened runtime, submits ZIPs for notarization, checks the response, replaces the draft macOS assets and updates checksums. Standalone CLI binaries cannot be stapled like app bundles; notarization tickets are checked online. Do not claim a release is notarized unless that workflow succeeded.
-
-No valid signing identity is assumed on a developer machine. Unsigned releases are explicitly marked as such. Source builds and Homebrew installation are available without uploading Apple credentials.
+Remove any previously uploaded binary archives and binary `checksums.txt` attachments, including draft releases. Retain source version tags and update published release notes to describe source installation. GitHub's automatic source archives are expected and are not binary packages. The repository must not commit executables; do not rewrite source history merely to remove binaries that were never committed.
 
 ## Upgrade compatibility
 
-Run the newer binary's `setup` command to update the managed background executable. Homebrew's binary is never overwritten by Pagehub. Setup preserves pages, token, settings and revisions, waits for health, and restores the prior binary/service configuration when startup fails. The legacy 0.2.0 launchd label is migrated to `io.pagehub.agent` after successful startup.
+After installing a newer version from source, run `pagehub setup` on macOS to update the managed background executable. Restart foreground Linux instances separately. Homebrew's executable is never overwritten by Pagehub. Setup preserves pages, token, settings, and revisions, waits for health, and restores the prior executable/service configuration when startup fails. The legacy 0.2.0 launchd label migrates to `io.pagehub.agent` after successful startup.
 
-Settings currently use schema version 1. Existing page metadata without a revision is read as revision 1. Any future page-format migration needs fixtures, restart tests and a rollback strategy before release.
+Settings currently use schema version 1. Existing page metadata without a revision is read as revision 1. Future page-format changes need fixtures, restart tests, and a rollback strategy before release.

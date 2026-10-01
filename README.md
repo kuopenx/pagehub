@@ -1,83 +1,78 @@
 # Pagehub
 
-**把 AI 生成的单文件 HTML，变成手机上可以直接打开的页面。**
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
+**Turn AI-generated, single-file HTML into pages you can open on your phone.**
 
-适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.3.1**，采用 [MIT](LICENSE) 许可。
+One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-## 安装
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.3.2**. License: [MIT](LICENSE).
 
-普通用户不需要 Go、Python 或 Node.js。**macOS 支持后台安装；Linux 支持前台运行。**
+## Installation
 
-### Homebrew（macOS）
+Pagehub is distributed **only as source**. Use Homebrew, `go install`, or build from a checkout. GitHub Releases contain version notes and automatic source archives; no precompiled binaries or installers are published.
+
+**macOS supports background installation; Linux supports foreground serving.** Python and Node.js are not required.
+
+### Homebrew (macOS)
 
 ```sh
 brew install kuopenx/tap/pagehub
 pagehub setup
-pagehub connect codex    # 或 pagehub connect claude
+pagehub connect codex    # or: pagehub connect claude
 pagehub doctor
 pagehub open
 ```
 
-Formula 从版本化源码构建，Go 由 Homebrew 管理。`setup` 安装的是用户级 LaunchAgent，登录后自动启动，不需要 root。可重复执行，用于安装或更新已有后台实例。
+Homebrew builds the versioned source and manages Go as a build dependency. `setup` installs a user LaunchAgent that starts when you log in, without root. Run it again to update an existing background instance.
 
-### GitHub Release
+### Go (macOS and Linux)
 
-从 [Releases](https://github.com/kuopenx/pagehub/releases) 下载对应操作系统和架构的压缩包，核对 `checksums.txt`，解压得到 `pagehub`。macOS 可运行：
-
-```sh
-./pagehub setup
-./pagehub connect claude
-./pagehub doctor
-./pagehub open
-```
-
-未配置 Apple Developer ID 签名及公证的 macOS Release 会明确标为未签名。若系统阻止下载的可执行程序，优先选择 Homebrew 源码安装；不要关闭 Gatekeeper 或防火墙。
-
-### 开发者安装
-
-需要 Go 1.26.0+：
+Requires Go 1.26.0 or newer:
 
 ```sh
 go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 ```
 
-源码开发与验证见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+Make sure `GOBIN`, or `$(go env GOPATH)/bin` when `GOBIN` is unset, is on your `PATH`. On macOS, continue with `pagehub setup` and the client commands above. On Linux, run `pagehub serve`; use a second terminal to connect a client.
 
-## 使用
+For building from a checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-本机 Dashboard：<http://127.0.0.1:8765/>。手机与电脑连接同一局域网，打开 `http://<电脑局域网IPv4>:8765/`；`setup`、`doctor` 和 `open` 会输出 LAN 链接。
+## Usage
 
-通过 MCP 让 AI 创建页面，随后使用返回的页面链接，或者刷新 Dashboard 搜索和打开页面。创建、更新和删除即时生效，网页手动刷新即可看到变化。
+The local dashboard is <http://127.0.0.1:8765/>. Connect your phone and computer to the same LAN and open `http://<computer-LAN-IPv4>:8765/`. `setup`, `doctor`, and `open` print the available LAN links.
 
-| 命令 | 行为 |
+Ask your MCP client to create a page, then open the returned URL or find it on the dashboard. Creating, editing, and deleting pages takes effect immediately. Refresh the browser to see changes.
+
+| Command | Behavior |
 | --- | --- |
-| `pagehub serve` | 前台运行 HTTP 和 MCP |
-| `pagehub setup` | 安装或升级 macOS 后台服务，启动并等待健康检查 |
-| `pagehub service start/stop/restart/status` | 管理用户级后台服务 |
-| `pagehub connect codex/claude` | 注册本服务，保留其他客户端配置 |
-| `pagehub disconnect codex/claude` | 移除指向本服务的 Pagehub 注册 |
-| `pagehub doctor` | 检查后台、HTTP、认证 MCP、客户端配置和 LAN 地址 |
-| `pagehub open` | 打开 Dashboard；无浏览器时仍输出链接 |
-| `pagehub version` | 程序版本、提交和构建时间 |
-| `pagehub uninstall` | 移除后台注册及托管二进制，保留页面、令牌、设置和客户端配置 |
+| `pagehub serve` | Run HTTP and MCP in the foreground |
+| `pagehub setup` | Install or upgrade the macOS background service, start it, and wait for health |
+| `pagehub service start/stop/restart/status` | Manage the user background service |
+| `pagehub connect codex/claude` | Register Pagehub while preserving other client configuration |
+| `pagehub disconnect codex/claude` | Remove the Pagehub registration pointing to this service |
+| `pagehub doctor` | Check the service, HTTP, authenticated MCP, client configuration, and LAN addresses |
+| `pagehub open` | Open the dashboard; still print its URL when no browser is available |
+| `pagehub version` | Print version, commit, and build date |
+| `pagehub uninstall` | Remove the service and managed executable; keep pages, token, settings, and client configuration |
 
-每条命令支持 `--help`。`--json` 提供机器可读结果；成功退出码为 0，操作失败为 1，参数解析或校验失败为 2。错误写入 stderr。`--data-dir`、`--port`、`--service-name` 可覆盖保存的设置；连接命令支持 `--config-file` 指定配置文件。
+Every command supports `--help`. Use `--json` for machine-readable output. Exit codes are 0 for success, 1 for operation failure, and 2 for argument parsing or validation failure. Errors go to stderr. `--data-dir`, `--port`, and `--service-name` override saved settings; connection commands also accept `--config-file`.
 
-服务默认监听 `0.0.0.0:8765` 的 IPv4。不同实例必须使用不同端口、数据目录和 service name。开发实例示例：
+The default listener is IPv4 `0.0.0.0:8765`. Separate instances need distinct ports, data directories, and service names. For a foreground development instance:
 
 ```sh
 pagehub serve --port 8766 --data-dir "$(mktemp -d)"
 ```
 
-### 接入客户端
+### Connect clients
 
-`connect` 为本机 HTTP 地址配置 Authorization 头；令牌不出现在命令输出中。同名 MCP 指向其他地址时拒绝覆盖。配置文件权限设为 `0600`，已有客户端会话可能需要重新打开，以刷新六个工具。
+`connect` configures an Authorization header for the local HTTP endpoint without printing the token. It refuses to overwrite an MCP registration with the same name pointing elsewhere. Client configuration permissions are set to `0600`. Reopen existing client sessions if needed to discover the six tools.
 
-自定义端口或目录时，为 `setup`、`connect` 使用同一个 `--data-dir`，连接地址会读取保存的端口。配置路径默认为 `~/.codex/config.toml` 和 `~/.claude.json`；也可通过 `--config-file` 指定客户端使用的其他配置。
+For a custom data directory or port, use the same `--data-dir` for `setup` and `connect`; the endpoint uses the saved port. Default configuration paths are `~/.codex/config.toml` and `~/.claude.json`. Use `--config-file` if your client reads another file.
 
-### 升级与卸载
+### Upgrade and uninstall
+
+For Homebrew:
 
 ```sh
 brew upgrade pagehub
@@ -85,59 +80,61 @@ pagehub setup
 pagehub doctor
 ```
 
-`setup` 将当前版本复制到 `~/.pagehub/bin/pagehub`，不会覆盖包管理器的文件。启动失败时回滚之前的二进制、设置和服务注册。现有页面、URL、令牌和修订号保持不变；旧版 launchd 标签迁移至 `io.pagehub.agent`。
+For Go installations, rerun `go install github.com/kuopenx/pagehub/cmd/pagehub@latest`, then run `pagehub setup` on macOS and `pagehub doctor`. Restart a foreground Linux instance to use the new executable.
 
-卸载后台服务并保留页面：
+`setup` copies the current executable into `~/.pagehub/bin/pagehub`; it does not overwrite package-manager files. If startup fails, it restores the previous executable, settings, and service registration. Existing pages, URLs, token, and revisions remain intact. Legacy launchd registrations migrate to `io.pagehub.agent`.
+
+To remove the background service while keeping pages:
 
 ```sh
 pagehub disconnect codex
 pagehub disconnect claude
 pagehub uninstall
-brew uninstall pagehub   # 如果用 Homebrew 安装
+brew uninstall pagehub   # if installed with Homebrew
 ```
 
-页面数据不会自动删除。管理令牌首次随机生成后持久化，重启与升级不会使其失效。
+Page data is never deleted automatically. The management token is randomly generated once and persists across restarts and upgrades.
 
-## MCP 接口
+## MCP interface
 
-HTTP 与 MCP 共用端口，管理地址为 `http://127.0.0.1:8765/_mcp`。使用官方 Go SDK 的无状态 Streamable HTTP，支持 SDK 接受的协议版本；客户端负责协商。
+HTTP and MCP share one port. The management endpoint is `http://127.0.0.1:8765/_mcp`. Pagehub uses the official Go SDK with stateless Streamable HTTP; clients negotiate a protocol version accepted by that SDK.
 
-| 工具 | 参数 | 行为 |
+| Tool | Arguments | Behavior |
 | --- | --- | --- |
-| `create_page` | `title, media_type, html` | 完整 HTML 文本；媒体类型固定为 `text/html`，生成 UUID |
-| `list_pages` | `query?, offset?, limit?` | 按标题/UUID 检索，创建时间倒序；默认 100 条，0 表示全部 |
-| `read_page` | `id, start_line?, end_line?` | 精确源码和修订号；1 起始、首尾包含的行区间 |
-| `patch_page` | `id, expected_revision, edits` | 唯一匹配的精确文本替换，整批成功才保存 |
-| `update_page` | `id, title?, media_type?, html?, expected_revision?` | 重命名或完整替换，版本检查可选 |
-| `delete_page` | `id` | 删除托管文件与内存索引，后续 URL 返回 404 |
+| `create_page` | `title, media_type, html` | Accept complete HTML, require `text/html`, and generate a UUID |
+| `list_pages` | `query?, offset?, limit?` | Search titles/UUIDs, newest creation first; default limit 100, 0 means all |
+| `read_page` | `id, start_line?, end_line?` | Return exact source and revision, with optional 1-based inclusive line bounds |
+| `patch_page` | `id, expected_revision, edits` | Apply uniquely matching exact-text replacements; save only if the entire batch succeeds |
+| `update_page` | `id, title?, media_type?, html?, expected_revision?` | Rename or replace content, with optional revision checking |
+| `delete_page` | `id` | Delete managed files and the in-memory index entry; the URL then returns 404 |
 
-工具参数与用法见 [MCP 示例](docs/mcp.md)，完整 HTML 示例见 [鹈鹕骑自行车](examples/pelican-bicycle.html)。修订号保护并发修改，不保存历史副本。
+See [MCP examples](docs/mcp.md) and the self-contained [pelican riding a bicycle](examples/pelican-bicycle.html). Revisions protect concurrent edits; historical copies are not retained.
 
-## 内容与访问边界
+## Content and access boundaries
 
-只托管完整 UTF-8 单文件 HTML，可内嵌 CSS、JS、SVG、data URL。不接受路径、URL 导入、PDF、ZIP 或独立资源文件；外部引用仍可能由浏览器请求，但服务器不会下载或代管。
+Only complete, single-file UTF-8 HTML is hosted. Inline CSS, JavaScript, SVG, and data URLs are supported. Paths, URL imports, PDF, ZIP, and separate assets are not accepted. Browsers may still request external references; Pagehub does not download or manage them.
 
-Dashboard 和页面允许 LAN 访问，无登录；MCP 管理仅接受 loopback、合法 Host/Origin 和 Bearer token。HTML 可以执行 JavaScript，所有页面目前共享同一 origin，因此只用于可信内容和可信局域网。详细边界及私密漏洞反馈见 [SECURITY.md](SECURITY.md)。
+Pages and the dashboard are accessible over the LAN without login. MCP management requires loopback, a valid Host/Origin, and a Bearer token. HTML can execute JavaScript, and all pages currently share one origin. Use trusted content on a trusted LAN. See [SECURITY.md](SECURITY.md) for the trust boundary and private vulnerability reporting.
 
-内存索引只保留元数据；正文按需读取，操作期间暂时占用内存。实际容量受磁盘和内存限制。日志约 1 MiB 轮转，最多两个文件，不记录 HTML 或认证信息。
+The in-memory index contains metadata only. Content is read on demand and temporarily occupies memory during operations. Disk and memory still impose practical limits. Logs rotate at approximately 1 MiB, with at most two files; they contain neither HTML nor authentication information.
 
-## 存储与排查
+## Storage and troubleshooting
 
-默认数据目录 `~/.pagehub` 包含 `settings.json`、`token`、日志、`bin/pagehub` 和 `pages/<uuid>/{index.html,page.json}`。目录由服务管理，MCP 调用者不需要访问它。
+The default `~/.pagehub` directory contains `settings.json`, `token`, logs, `bin/pagehub`, and `pages/<uuid>/{index.html,page.json}`. Pagehub manages these files; MCP callers do not need to access them.
 
-先运行 `pagehub doctor --json`：
+Start with `pagehub doctor --json`:
 
-| 问题 | 检查 |
+| Problem | Check |
 | --- | --- |
-| 服务未启动 | `pagehub service status`；`pagehub service start`；检查 `pagehub.log` |
-| 本机可访问、手机不可访问 | 同一 Wi-Fi、正确 IPv4、macOS 系统设置中的 Pagehub 入站防火墙许可 |
-| MCP 401 | 用同一数据目录重新执行 `pagehub connect <client>` |
-| MCP 403 | 使用本机管理 URL，检查 Host/Origin；LAN 仅用于页面访问 |
-| 新工具未出现 | 重新打开客户端会话 |
-| 补丁匹配失败或版本冲突 | 重新读取页面，检查上下文与最新修订号 |
+| Service is not running | `pagehub service status`, `pagehub service start`, and `pagehub.log` |
+| Local access works but phone access fails | Same Wi-Fi, correct IPv4, and Pagehub's incoming firewall permission in macOS Settings |
+| MCP returns 401 | Rerun `pagehub connect <client>` with the same data directory |
+| MCP returns 403 | Use the local management URL and check Host/Origin; LAN URLs are for pages |
+| New tools are missing | Reopen the client session |
+| Patch match or revision conflict | Read the page again and check context and the latest revision |
 
-## 维护
+## Maintenance
 
-开发规则见 [AGENTS.md](AGENTS.md)，发布与可选签名流程见 [docs/releasing.md](docs/releasing.md)。由 [kuopenx](https://github.com/kuopenx) 维护；问题和建议可提交到 [Issues](https://github.com/kuopenx/pagehub/issues)。请提供版本、复现步骤与脱敏诊断。
+See [AGENTS.md](AGENTS.md) for development rules and [docs/releasing.md](docs/releasing.md) for source releases. Maintained by [kuopenx](https://github.com/kuopenx). Report problems and suggestions through [Issues](https://github.com/kuopenx/pagehub/issues), with version, reproduction steps, and redacted diagnostics.
 
-依赖版权声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+Dependency notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

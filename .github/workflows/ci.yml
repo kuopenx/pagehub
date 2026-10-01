@@ -23,14 +23,3 @@ jobs:
       - run: go build -trimpath -o pagehub ./cmd/pagehub
       - name: Real CLI and MCP acceptance
         run: go run ./cmd/pagehub-verify --binary ./pagehub
-  release-config:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version-file: go.mod
-      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
-        with:
-          version: v2.18.2
-          args: check

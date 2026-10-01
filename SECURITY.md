@@ -1,5 +1,7 @@
 # Security
 
+[English](SECURITY.md) · [简体中文](SECURITY.zh-CN.md)
+
 ## Supported versions
 
 Security fixes are applied to the latest released 0.x version. Earlier versions should be upgraded before reporting an issue.
@@ -14,4 +16,4 @@ Pagehub is for trusted HTML on a trusted LAN. Public pages and the Dashboard hav
 
 MCP management requires a persistent Bearer token, loopback requests and valid Host/Origin. Never send that token to a LAN URL, expose the MCP endpoint through a public proxy, or place the token in an HTML artifact. Client configuration files and the data directory are private local files.
 
-Background installation uses a macOS user LaunchAgent. It does not disable the firewall, request system-wide installation or run the service as root. macOS distribution archives are not Developer ID signed or notarized unless the corresponding release process explicitly states otherwise.
+Background installation uses a macOS user LaunchAgent. It does not disable the firewall, request system-wide installation or run the service as root. Pagehub is distributed only as source; Homebrew and Go installations build the executable locally. No precompiled binaries or installers are published. Source installations make no Apple Developer ID signing or notarization claim.

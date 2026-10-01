@@ -1,5 +1,7 @@
 # MCP usage
 
+[English](mcp.md) · [简体中文](mcp.zh-CN.md)
+
 Connect to the local Pagehub service through a compatible MCP client. Tool arguments contain actual HTML text, not filesystem paths. Titles may repeat; all operations use the server-generated UUID.
 
 ## Create
