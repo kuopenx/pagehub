@@ -19,10 +19,16 @@ func TestClientLifecyclePreservesUnrelatedSettings(t *testing.T) {
 				t.Fatal(err)
 			}
 			c := Client{Name: name, Path: path, URL: "http://127.0.0.1:8765/_mcp", Token: "test-token"}
-			for range 2 {
-				if err := c.Change(true); err != nil {
-					t.Fatal(err)
-				}
+			if err := c.Change(true); err != nil {
+				t.Fatal(err)
+			}
+			first, _ := os.ReadFile(path)
+			if err := c.Change(true); err != nil {
+				t.Fatal(err)
+			}
+			second, _ := os.ReadFile(path)
+			if string(first) != string(second) {
+				t.Fatal("repeated connect changed file bytes")
 			}
 			ok, err := c.Connected()
 			if err != nil || !ok {

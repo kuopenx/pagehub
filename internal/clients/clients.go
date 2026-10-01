@@ -132,7 +132,10 @@ func (c Client) codex(original []byte, connect bool) ([]byte, error) {
 		if c.Token == "" {
 			return nil, errors.New("management token is missing")
 		}
-		if out.Len() > 0 && !strings.HasSuffix(out.String(), "\n") {
+		prefix := strings.TrimRight(out.String(), "\r\n")
+		out.Reset()
+		if prefix != "" {
+			out.WriteString(prefix)
 			out.WriteByte('\n')
 		}
 		server, e := object(entry)
