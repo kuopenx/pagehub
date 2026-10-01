@@ -1,0 +1,23 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync(process.argv[2] || 'experiments/pelican-preview.html', 'utf8');
+const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(m => [m[1], {attrs: {}, listeners: {}, style: {}, textContent: '', setAttribute(k,v){this.attrs[k]=v;}, addEventListener(k,fn){this.listeners[k]=fn;}}]));
+const media = {matches: false, addEventListener(k, fn){this.listener=fn;}};
+const document = {hidden: false, getElementById(id){assert(elements.has(id), `missing SVG/DOM id ${id}`); return elements.get(id);}, querySelector(sel){return this.getElementById(sel.slice(1));}};
+const context = vm.createContext({document, window:{matchMedia(){return media;}}, requestAnimationFrame(){}});
+vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context);
+const run = code => vm.runInContext(code, context);
+run('animate(0); animate(50)'); assert(run('t') > 0);
+elements.get('toggle').listeners.click(); const paused=run('t'); run('animate(100)'); assert.equal(run('t'), paused);
+elements.get('toggle').listeners.click(); run('animate(150)'); assert(run('t') > paused);
+elements.get('speed').listeners.input({target:{value:'2'}}); assert.equal(elements.get('speedValue').textContent, '2.0×');
+run('t=.7;render()'); const mild=elements.get('scarfTail').attrs.transform;
+elements.get('wind').listeners.click(); assert.equal(elements.get('wind').attrs['aria-pressed'], 'true'); assert.notEqual(elements.get('scarfTail').attrs.transform, mild);
+assert(Math.abs(Number(elements.get('windLines').attrs.opacity)-.46)<1e-12);
+run('t=4.8;render()'); assert(elements.get('eye').attrs.transform.includes('scale(1 0.06)'));
+run('t=5.2;render()'); assert(elements.get('eye').attrs.transform.includes('scale(1 1)'));
+for(let t=0;t<12;t+=.03){run(`t=${t};render()`); for(const el of elements.values()) for(const v of Object.values(el.attrs)) assert(!/NaN|Infinity/.test(String(v)));}
+document.hidden=true; const before=run('t'); run('animate(200)'); assert.equal(run('t'), before);
+media.listener({matches:true}); assert.equal(run('running'),false);
+console.log('Animation checks passed: frame progression, pause, speed, wind, blink, SVG geometry, hidden tab, reduced motion');
