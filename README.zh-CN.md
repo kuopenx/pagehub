@@ -6,7 +6,7 @@
 
 一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
 
-适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.3.3**，采用 [MIT](LICENSE) 许可。
+适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.3.4**，采用 [MIT](LICENSE) 许可。
 
 ## 安装
 
@@ -42,7 +42,7 @@ go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 
 本机 Dashboard：<http://127.0.0.1:8765/>。手机与电脑连接同一局域网，打开 `http://<电脑局域网IPv4>:8765/`；`setup`、`doctor` 和 `open` 会输出 LAN 链接。
 
-通过 MCP 让 AI 创建页面，随后使用返回的页面链接，或者刷新 Dashboard 搜索和打开页面。创建、更新和删除即时生效，网页手动刷新即可看到变化。
+通过 MCP 让 AI 创建页面，随后使用返回的页面链接，或者刷新 Dashboard 搜索和打开页面。创建、更新和删除即时生效，网页手动刷新即可看到变化。点击 Dashboard 卡片任意位置即可在新标签页打开对应页面，复制链接按钮仍独立工作。
 
 | 命令 | 行为 |
 | --- | --- |
