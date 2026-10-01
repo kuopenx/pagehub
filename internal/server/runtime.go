@@ -1,78 +1,61 @@
-package main
+package server
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"flag"
 	"fmt"
+	"github.com/kuopenx/pagehub/internal/buildinfo"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
-const version = "0.2.0"
+var version = buildinfo.Version
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println("pagehub", version)
-		return
-	}
-	home, err := os.UserHomeDir()
+func Serve(ctx context.Context, dataDir string, port int) error {
+	store, err := OpenStore(dataDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	dataDir := flag.String("data-dir", filepath.Join(home, ".pagehub"), "Private page storage directory")
-	port := flag.Int("port", 8765, "Shared HTTP and MCP port")
-	flag.Parse()
-	if *port < 1 || *port > 65535 {
-		log.Fatal("invalid port")
-	}
-	store, err := OpenStore(*dataDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-	logger := &rotatingLog{path: filepath.Join(*dataDir, "pagehub.log")}
+	logger := &rotatingLog{path: filepath.Join(dataDir, "pagehub.log")}
 	defer logger.Close()
 	log.SetOutput(logger)
-	token, err := loadToken(filepath.Join(*dataDir, "token"))
+	token, err := LoadToken(filepath.Join(dataDir, "token"))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	// All mutation and page content live in this process; no per-page workers.
-	handler := NewApp(store, token, *port)
-	server := &http.Server{
-		Addr: fmt.Sprintf("0.0.0.0:%d", *port), Handler: handler,
-		ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second,
-	}
-	listener, err := net.Listen("tcp4", server.Addr)
+	listener, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
-	defer stop()
+	srv := &http.Server{Handler: NewApp(store, token, port), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second}
+	done := make(chan struct{})
+	defer close(done)
 	go func() {
-		<-ctx.Done()
-		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = server.Shutdown(shutdown)
+		select {
+		case <-ctx.Done():
+			shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = srv.Shutdown(shutdown)
+		case <-done:
+		}
 	}()
-	log.Printf("pagehub %s ready on port %d; %d pages loaded", version, *port, store.Count())
-	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+	log.Printf("pagehub %s ready on port %d; %d pages loaded", version, port, store.Count())
+	err = srv.Serve(listener)
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
 	}
+	return err
 }
-
-func loadToken(path string) (string, error) {
+func LoadToken(path string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err == nil {
 		t := strings.TrimSpace(string(b))

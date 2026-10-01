@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible Pagehub problem
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Pagehub version and OS
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use a minimal HTML example and remove private content.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Include doctor output. Never include tokens or Authorization headers.

@@ -1,0 +1,42 @@
+version: 2
+project_name: pagehub
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: pagehub
+    main: ./cmd/pagehub
+    binary: pagehub
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - arm64
+      - amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/kuopenx/pagehub/internal/buildinfo.Version={{.Version}} -X github.com/kuopenx/pagehub/internal/buildinfo.Commit={{.Commit}} -X github.com/kuopenx/pagehub/internal/buildinfo.Date={{.Date}}
+archives:
+  - formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - LICENSE
+      - README.md
+      - THIRD_PARTY_NOTICES.md
+checksum:
+  name_template: checksums.txt
+changelog:
+  use: git
+  sort: asc
+release:
+  github:
+    owner: kuopenx
+    name: pagehub
+  draft: true
+  header: |
+    Single-binary HTML artifact hosting with a local MCP interface.
+    macOS supports background setup. Linux supports foreground serve.
+    macOS archives are unsigned unless the signing workflow was configured.

@@ -8,3 +8,6 @@ __pycache__/
 /experiments/pelican-after.html
 /experiments/pelican-preview.html
 /experiments/pelican-edits.json
+/dist/
+/acceptance*.json
+/.pagehub-dev/

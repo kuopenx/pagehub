@@ -1,203 +1,143 @@
 # Pagehub
 
-把 AI 生成的单文件 HTML 变成手机上可以直接打开的页面。
+**把 AI 生成的单文件 HTML，变成手机上可以直接打开的页面。**
 
-Pagehub 是一个 Go 常驻服务：同一个端口提供局域网页面、页面集合 Dashboard 和本机 MCP 接口。Codex、Claude Code 等 MCP 客户端直接提交 HTML 或局部修改，用户在同一 Wi-Fi 下打开链接即可查看。
+一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
 
-当前版本：**0.2.0**。适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，通过服务器生成的 UUID 区分；没有休眠、有效期、数量或业务大小限制。
+适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.3.0**，采用 [MIT](LICENSE) 许可。
 
-## 快速开始
+## 安装
 
-### 环境要求
+普通用户不需要 Go、Python 或 Node.js。**macOS 支持后台安装；Linux 支持前台运行。**
 
-- Go **1.26.0 或更新版本**，版本要求以 [go.mod](go.mod) 为准。
-- Git；私有仓库需要对应的 GitHub 访问权限。
-- macOS 后台安装需要 Python 3；Codex 配置脚本使用 `tomllib`，需要 **Python 3.11+**。
-- 按需安装 Codex CLI 或 Claude Code CLI，并确保命令位于 `PATH`。
-
-以下命令在仓库根目录运行。首次构建需要下载 Go 模块。
+### Homebrew（macOS）
 
 ```sh
-git clone git@github.com:kuopenx/pagehub.git
-cd pagehub
-go build -trimpath -ldflags='-s -w' -o pagehub .
-./pagehub version
-python3 install-macos.py
-curl --fail http://127.0.0.1:8765/_health
+brew install kuopenx/tap/pagehub
+pagehub setup
+pagehub connect codex    # 或 pagehub connect claude
+pagehub doctor
+pagehub open
 ```
 
-安装脚本将二进制复制到 `~/.pagehub/bin/pagehub`，注册用户级 LaunchAgent；**登录 macOS 后自动启动**，异常退出后恢复。再次运行安装脚本会更新二进制并重启已有服务，保留页面和管理令牌。
+Formula 从版本化源码构建，Go 由 Homebrew 管理。`setup` 安装的是用户级 LaunchAgent，登录后自动启动，不需要 root。可重复执行，用于安装或更新已有后台实例。
 
-本机 Dashboard：<http://127.0.0.1:8765/>。手机使用 `http://<电脑的局域网 IPv4 地址>:8765/`，与电脑连接同一局域网。也可以从 MCP 返回的 `lan_urls` 中选择与当前 Wi-Fi 对应的地址。
+### GitHub Release
 
-若 macOS 防火墙阻止访问，执行下面的命令并输入管理员密码；它只允许 Pagehub 入站，不关闭防火墙：
+从 [Releases](https://github.com/kuopenx/pagehub/releases) 下载对应操作系统和架构的压缩包，核对 `checksums.txt`，解压得到 `pagehub`。macOS 可运行：
 
 ```sh
-./allow-lan.command
+./pagehub setup
+./pagehub connect claude
+./pagehub doctor
+./pagehub open
 ```
 
-### 连接 MCP 客户端
+未配置 Apple Developer ID 签名及公证的 macOS Release 会明确标为未签名。若系统阻止下载的可执行程序，优先选择 Homebrew 源码安装；不要关闭 Gatekeeper 或防火墙。
 
-先安装并启动服务，再按需执行：
+### 开发者安装
+
+需要 Go 1.26.0+：
 
 ```sh
-python3 configure-codex.py
-python3 configure-claude.py
+go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 ```
 
-两个客户端都连接 `http://127.0.0.1:8765/_mcp`，共享已有后台进程。脚本将本机管理令牌写入各自的用户级配置，文件权限为 `0600`。Claude 配置可通过 `claude mcp get pagehub` 检查连接；已有客户端会话可能需要重新打开才能刷新工具清单。
+源码开发与验证见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-配置脚本使用默认端口和存储位置。若自行更改端口或数据目录，需要相应调整客户端 URL 和令牌配置。
+## 使用
 
-### 前台运行与参数
+本机 Dashboard：<http://127.0.0.1:8765/>。手机与电脑连接同一局域网，打开 `http://<电脑局域网IPv4>:8765/`；`setup`、`doctor` 和 `open` 会输出 LAN 链接。
 
-Go 服务可以前台运行；macOS 自启动与客户端配置脚本是额外的安装便利工具。下面使用独立临时目录和端口，便于开发时避免与已安装服务冲突：
+通过 MCP 让 AI 创建页面，随后使用返回的页面链接，或者刷新 Dashboard 搜索和打开页面。创建、更新和删除即时生效，网页手动刷新即可看到变化。
+
+| 命令 | 行为 |
+| --- | --- |
+| `pagehub serve` | 前台运行 HTTP 和 MCP |
+| `pagehub setup` | 安装或升级 macOS 后台服务，启动并等待健康检查 |
+| `pagehub service start/stop/restart/status` | 管理用户级后台服务 |
+| `pagehub connect codex/claude` | 注册本服务，保留其他客户端配置 |
+| `pagehub disconnect codex/claude` | 移除指向本服务的 Pagehub 注册 |
+| `pagehub doctor` | 检查后台、HTTP、认证 MCP、客户端配置和 LAN 地址 |
+| `pagehub open` | 打开 Dashboard；无浏览器时仍输出链接 |
+| `pagehub version` | 程序版本、提交和构建时间 |
+| `pagehub uninstall` | 移除后台注册及托管二进制，保留页面、令牌、设置和客户端配置 |
+
+每条命令支持 `--help`。`--json` 提供机器可读结果；成功退出码为 0，操作失败为 1，参数解析或校验失败为 2。错误写入 stderr。`--data-dir`、`--port`、`--service-name` 可覆盖保存的设置；连接命令支持 `--config-file` 指定配置文件。
+
+服务默认监听 `0.0.0.0:8765` 的 IPv4。不同实例必须使用不同端口、数据目录和 service name。开发实例示例：
 
 ```sh
-go build -o pagehub .
-./pagehub --port 8766 --data-dir "$(mktemp -d)"
+pagehub serve --port 8766 --data-dir "$(mktemp -d)"
 ```
 
-| 参数或命令 | 默认值 | 用途 |
-| --- | --- | --- |
-| `--port` | `8765` | HTTP 页面和 MCP 共用的端口，范围 1–65535 |
-| `--data-dir` | `~/.pagehub` | 页面、令牌和日志的私有存储目录 |
-| `version` | — | 输出当前程序版本并退出 |
+### 接入客户端
 
-服务监听 `0.0.0.0` 的 IPv4 地址。临时数据目录不会在退出时自动删除。
+`connect` 为本机 HTTP 地址配置 Authorization 头；令牌不出现在命令输出中。同名 MCP 指向其他地址时拒绝覆盖。配置文件权限设为 `0600`，已有客户端会话可能需要重新打开，以刷新六个工具。
 
-## MCP 工具
+自定义端口或目录时，为 `setup`、`connect` 使用同一个 `--data-dir`，连接地址会读取保存的端口。配置路径默认为 `~/.codex/config.toml` 和 `~/.claude.json`；也可通过 `--config-file` 指定客户端使用的其他配置。
 
-基于官方 [Go SDK](https://github.com/modelcontextprotocol/go-sdk)，依赖版本锁定在 `go.mod` / `go.sum`。使用无状态 Streamable HTTP，支持 MCP `2026-07-28` 及 SDK 支持的旧协议；调用者通常交由客户端 SDK 处理协议协商。
+### 升级与卸载
+
+```sh
+brew upgrade pagehub
+pagehub setup
+pagehub doctor
+```
+
+`setup` 将当前版本复制到 `~/.pagehub/bin/pagehub`，不会覆盖包管理器的文件。启动失败时回滚之前的二进制、设置和服务注册。现有页面、URL、令牌和修订号保持不变；旧版 launchd 标签迁移至 `io.pagehub.agent`。
+
+卸载后台服务并保留页面：
+
+```sh
+pagehub disconnect codex
+pagehub disconnect claude
+pagehub uninstall
+brew uninstall pagehub   # 如果用 Homebrew 安装
+```
+
+页面数据不会自动删除。管理令牌首次随机生成后持久化，重启与升级不会使其失效。
+
+## MCP 接口
+
+HTTP 与 MCP 共用端口，管理地址为 `http://127.0.0.1:8765/_mcp`。使用官方 Go SDK 的无状态 Streamable HTTP，支持 SDK 接受的协议版本；客户端负责协商。
 
 | 工具 | 参数 | 行为 |
 | --- | --- | --- |
-| `create_page` | `title, media_type, html` | 创建页面，生成 UUID；`media_type` 固定为 `text/html` |
-| `list_pages` | `query?, offset?, limit?` | 按标题或 UUID 检索，按创建时间倒序；默认 100 条，`limit=0` 返回全部 |
-| `read_page` | `id, start_line?, end_line?` | 读取精确源码及修订号；默认全文，可指定从 1 开始、包含首尾的行区间 |
-| `patch_page` | `id, expected_revision, edits` | 顺序执行局部文本替换，整批成功才保存 |
-| `update_page` | `id, title?, media_type?, html?, expected_revision?` | 修改标题或完整替换 HTML；替换时同时传 `media_type=text/html` |
-| `delete_page` | `id` | 永久删除服务器管理的 HTML、元数据和内存索引，页面 URL 返回 404 |
+| `create_page` | `title, media_type, html` | 完整 HTML 文本；媒体类型固定为 `text/html`，生成 UUID |
+| `list_pages` | `query?, offset?, limit?` | 按标题/UUID 检索，创建时间倒序；默认 100 条，0 表示全部 |
+| `read_page` | `id, start_line?, end_line?` | 精确源码和修订号；1 起始、首尾包含的行区间 |
+| `patch_page` | `id, expected_revision, edits` | 唯一匹配的精确文本替换，整批成功才保存 |
+| `update_page` | `id, title?, media_type?, html?, expected_revision?` | 重命名或完整替换，版本检查可选 |
+| `delete_page` | `id` | 删除托管文件与内存索引，后续 URL 返回 404 |
 
-页面元数据包含 `id`、标题、UTC 创建/更新时间、字节大小、`revision`、相对路径、本机 URL 和 LAN URL。创建、更新及补丁响应还提供 Dashboard URL；`read_page` 额外返回 `content`、`start_line`、`end_line` 和 `total_lines`。标题可以重复，操作页面时必须使用 UUID。
+工具参数与用法见 [MCP 示例](docs/mcp.md)，完整 HTML 示例见 [鹈鹕骑自行车](examples/pelican-bicycle.html)。修订号保护并发修改，不保存历史副本。
 
-### 创建页面
+## 内容与访问边界
 
-以下 JSON 是 `create_page` 的工具参数，由 MCP 客户端提交；`html` 是实际文本，不是文件路径：
+只托管完整 UTF-8 单文件 HTML，可内嵌 CSS、JS、SVG、data URL。不接受路径、URL 导入、PDF、ZIP 或独立资源文件；外部引用仍可能由浏览器请求，但服务器不会下载或代管。
 
-```json
-{
-  "title": "你好，Pagehub",
-  "media_type": "text/html",
-  "html": "<!doctype html><html lang=\"zh-CN\"><meta charset=\"UTF-8\"><title>你好</title><h1>你好，Pagehub</h1></html>"
-}
-```
+Dashboard 和页面允许 LAN 访问，无登录；MCP 管理仅接受 loopback、合法 Host/Origin 和 Bearer token。HTML 可以执行 JavaScript，所有页面目前共享同一 origin，因此只用于可信内容和可信局域网。详细边界及私密漏洞反馈见 [SECURITY.md](SECURITY.md)。
 
-创建成功后打开返回的 LAN URL，或者刷新 Dashboard。完整 SVG 示例见 [鹈鹕骑自行车](experiments/pelican-original.html)。
+内存索引只保留元数据；正文按需读取，操作期间暂时占用内存。实际容量受磁盘和内存限制。日志约 1 MiB 轮转，最多两个文件，不记录 HTML 或认证信息。
 
-### 局部修改页面
+## 存储与排查
 
-先调用 `read_page`，用创建或检索得到的真实 UUID 替换示例中的值：
+默认数据目录 `~/.pagehub` 包含 `settings.json`、`token`、日志、`bin/pagehub` 和 `pages/<uuid>/{index.html,page.json}`。目录由服务管理，MCP 调用者不需要访问它。
 
-```json
-{"id":"<page UUID>"}
-```
+先运行 `pagehub doctor --json`：
 
-将读取结果的 `page.revision` 作为 `expected_revision`，再调用 `patch_page`：
-
-```json
-{
-  "id": "<page UUID>",
-  "expected_revision": 1,
-  "edits": [
-    {"old_text":"<h1>你好，Pagehub</h1>","new_text":"<h1>手机上也能看到了</h1>"}
-  ]
-}
-```
-
-- `old_text` 必须非空，并在该次替换前的内容中恰好匹配一次；重复时增加上下文。支持精确文本，不支持正则或模糊匹配。
-- 各条修改顺序执行，后面的修改能看到前面的结果；`new_text` 为空表示删除。
-- 版本过期、任一匹配失败或最终 HTML 校验失败，整批不保存。冲突后重新读取并检查内容，再决定如何修改。
-- 新页面及旧版页面从 `revision=1` 开始，每次成功 `update` / `patch` 增加一次；不保留历史版本副本。
-- `update_page` 的版本号是可选参数；省略表示无条件更新。
-- 行区间读取保留原始换行；结束行超过末尾时截到末尾，开始行超出范围时返回错误。
-
-更新保留页面 UUID、URL 和创建时间，立即生效；浏览器手动刷新即可查看。不需要重启服务或重新上传整页来完成局部修改。
-
-## 支持的内容与访问边界
-
-只接受包含 `<html>` 根元素的完整 UTF-8 HTML 文档文本。可以内嵌 CSS、JavaScript、SVG 和 data URL。不提供独立资源文件托管，也不接受文件路径、URL 导入、Markdown、PDF、ZIP 或多文件上传。HTML 中的外部引用仍可能由浏览器请求，但 Pagehub 不下载或代管这些资源。
-
-Dashboard 和 HTML 页面供局域网直接访问，不要求登录。MCP 管理入口仅接受 loopback 请求、合法本机 Host/Origin 和 Bearer token。令牌在首次启动时生成，存储在数据目录的 `token` 文件中，后续启动复用；它不是写死在源码中的值。
-
-HTML 中的 JavaScript 可执行，服务不做内容消毒。按自用场景部署在可信局域网，提交自己信任的内容；不适合作为面向公网的多用户托管服务。
-
-## 存储与实现
-
-```text
-~/.pagehub/
-├── bin/pagehub               # macOS 安装后的二进制
-├── token                     # 持久化管理令牌
-├── pagehub.log               # 日志，最多保留当前和轮转文件
-└── pages/<uuid>/
-    ├── index.html            # 单文件页面
-    └── page.json             # 元数据及修订号
-```
-
-一个进程负责所有页面，内存索引只保留元数据；HTML 在请求时从磁盘读取，创建和补丁处理期间会暂时占用内存。没有业务配额，但实际容量仍受可用磁盘和内存限制。日志按约 1 MiB 轮转，最多两个文件，不记录上传的 HTML 或管理令牌。
-
-写入先暂存完整 HTML 和元数据，再发布。更新期间的备份用于中断恢复，成功后清理；启动时重建索引并处理遗留临时目录。已打开文件的读取不会读到半写入内容。删除只影响服务器管理的副本，不会删除调用者的原文件或撤回浏览器已接收的内容。
-
-| 文件 | 职责 |
+| 问题 | 检查 |
 | --- | --- |
-| [main.go](main.go) | 参数、令牌、监听、退出和日志轮转 |
-| [store.go](store.go) | 持久化、索引、修订号、精确读取和原子补丁 |
-| [tools.go](tools.go) | MCP 工具、Schema 和响应 |
-| [http.go](http.go)、[dashboard.html](dashboard.html) | 页面路由、缓存、管理访问限制与 Dashboard |
-| [install-macos.py](install-macos.py) | 用户级 LaunchAgent 安装与更新 |
-| [experiments/](experiments/) | 鹈鹕示例与真实 MCP 验收脚本 |
+| 服务未启动 | `pagehub service status`；`pagehub service start`；检查 `pagehub.log` |
+| 本机可访问、手机不可访问 | 同一 Wi-Fi、正确 IPv4、macOS 系统设置中的 Pagehub 入站防火墙许可 |
+| MCP 401 | 用同一数据目录重新执行 `pagehub connect <client>` |
+| MCP 403 | 使用本机管理 URL，检查 Host/Origin；LAN 仅用于页面访问 |
+| 新工具未出现 | 重新打开客户端会话 |
+| 补丁匹配失败或版本冲突 | 重新读取页面，检查上下文与最新修订号 |
 
-## 开发与验证
+## 维护
 
-在仓库根目录执行：
+开发规则见 [AGENTS.md](AGENTS.md)，发布与可选签名流程见 [docs/releasing.md](docs/releasing.md)。由 [kuopenx](https://github.com/kuopenx) 维护；问题和建议可提交到 [Issues](https://github.com/kuopenx/pagehub/issues)。请提供版本、复现步骤与脱敏诊断。
 
-```sh
-go test -race ./...
-go vet ./...
-```
-
-测试覆盖存储生命周期、中断恢复、并发修改、版本冲突、补丁失败不保存、精确行读取、MCP Schema、超过 SDK 默认 4 MiB 的请求、Dashboard 转义和管理访问隔离。HTTP 集成测试需要允许监听本机临时端口。
-
-可选动画检查需要 Node.js：
-
-```sh
-python3 experiments/prepare-pelican.py
-node experiments/check-animation.cjs
-```
-
-真实服务验收脚本会创建、修改或删除页面，不能当作无副作用的常规测试。使用前阅读 [cmd/pagehub-verify/main.go](cmd/pagehub-verify/main.go) 和 [experiments/verify-patch.py](experiments/verify-patch.py)；后者绑定特定鹈鹕 UUID 和实验局域网地址，只适用于对应的本机环境。
-
-开发代理的项目约束和验证要求见 [AGENTS.md](AGENTS.md)。
-
-## 故障排查
-
-| 现象 | 检查方式 |
-| --- | --- |
-| 本机也打不开 | 检查 `/_health`、端口是否被占用，以及 `~/.pagehub/pagehub.log` |
-| 本机正常，手机打不开 | 确认同一局域网和正确 IPv4 地址，运行 `allow-lan.command` 检查防火墙许可 |
-| MCP 401 | 客户端缺少或使用了错误令牌；服务启动后重新运行对应配置脚本 |
-| MCP 403 | 管理请求来自非 loopback，或者 Host/Origin 不合法；客户端使用本机 URL |
-| 新工具没有出现 | 重新打开客户端会话以刷新工具清单 |
-| 补丁匹配失败 | 重新读取源码，检查空白和换行；重复文本增加上下文 |
-| 版本冲突 | 重新读取页面，检查其他修改，再生成补丁 |
-
-后台状态及手动重启：
-
-```sh
-launchctl print gui/$(id -u)/com.garyshu.pagehub
-launchctl kickstart -k gui/$(id -u)/com.garyshu.pagehub
-```
-
-## 维护与反馈
-
-由 [kuopenx](https://github.com/kuopenx) 维护。仓库有访问权限的用户可通过 [Issues](https://github.com/kuopenx/pagehub/issues) 反馈问题，附上程序版本、复现步骤和已脱敏的错误信息。提交行为变更时同步更新工具说明、相关测试和本文档。
+依赖版权声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
