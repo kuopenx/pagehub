@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -192,5 +193,48 @@ func TestManagementIsolation(t *testing.T) {
 	managementOnly("test-token", port, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("LAN reached MCP handler") })).ServeHTTP(w, request)
 	if w.Code != 403 {
 		t.Fatal("LAN management allowed")
+	}
+}
+
+func TestDashboardRendering(t *testing.T) {
+	s, h, _ := testServer(t)
+	get := func(path string) string {
+		t.Helper()
+		res, err := http.Get(h.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return string(b)
+	}
+	if body := get("/"); !strings.Contains(body, `data-count="0"`) || !strings.Contains(body, "发布第一个页面") || strings.Contains(body, `id="grid"`) {
+		t.Fatal("empty dashboard missing onboarding")
+	}
+	p, err := s.Create(`"><img src=x onerror=alert(1)> 报表`, "<html><body>x</body></html>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := get("/")
+	for _, want := range []string{`data-count="1"`, `data-id="` + p.ID + `"`, fmt.Sprintf(`style="--h:%d"`, pageHue(p.ID)), `id="grid"`, `第 1 版`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("dashboard missing %q", want)
+		}
+	}
+	if strings.Contains(body, `target="_blank"`) {
+		t.Fatal("dashboard cards must open pages in the same tab")
+	}
+	if strings.Contains(body, "<img src=x") || strings.Contains(body, `data-title=""`) {
+		t.Fatal("dashboard title not escaped")
+	}
+	if body := get("/?q=nomatch"); !strings.Contains(body, `id="grid"`) || strings.Contains(body, `id="noresult" hidden`) || strings.Contains(body, p.ID) {
+		t.Fatal("filtered dashboard should render an empty grid with a visible no-result state")
+	}
+}
+
+func TestDashboardHelpers(t *testing.T) {
+	id := "0f8fad5b-d9cb-469f-a165-70867728950e"
+	if pageHue(id) != pageHue(id) || pageHue(id) >= 360 {
+		t.Fatal("pageHue must be stable and within 0-359")
 	}
 }

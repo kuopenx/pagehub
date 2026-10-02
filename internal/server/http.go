@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"html/template"
 	"net"
 	"net/http"
@@ -18,7 +19,14 @@ import (
 
 //go:embed dashboard.html
 var dashboardHTML string
-var dashboardTemplate = template.Must(template.New("dashboard").Parse(dashboardHTML))
+var dashboardTemplate = template.Must(template.New("dashboard").Funcs(template.FuncMap{"hue": pageHue}).Parse(dashboardHTML))
+
+// pageHue derives a stable hue for a card's folded corner so pages stay visually distinct.
+func pageHue(id string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(id))
+	return h.Sum32() % 360
+}
 
 type App struct {
 	store *Store

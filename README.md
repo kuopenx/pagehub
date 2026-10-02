@@ -6,7 +6,7 @@
 
 One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.3.4**. License: [MIT](LICENSE).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.3.5**. License: [MIT](LICENSE).
 
 ## Installation
 
@@ -42,7 +42,7 @@ For building from a checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The local dashboard is <http://127.0.0.1:8765/>. Connect your phone and computer to the same LAN and open `http://<computer-LAN-IPv4>:8765/`. `setup`, `doctor`, and `open` print the available LAN links.
 
-Ask your MCP client to create a page, then open the returned URL or find it on the dashboard. Creating, editing, and deleting pages takes effect immediately. Refresh the browser to see changes. Click anywhere on a dashboard card to open its page in a new tab; the copy-link button remains independent.
+Ask your MCP client to create a page, then open the returned URL or find it on the dashboard. Creating, editing, and deleting pages takes effect immediately; an open dashboard checks for changes and shows a prompt that refreshes the list in place. Search filters as you type (press `/` to focus it, then Enter to open the first match), and you can sort by recently updated, recently created, or title; search and sort are kept in the URL. Click anywhere on a card to open its page in the same tab; use the browser back button to return. On this computer, copy-link copies the LAN address, and the QR button shows a scannable code for opening a page on your phone. The dashboard follows the system light or dark appearance and still works with JavaScript disabled.
 
 | Command | Behavior |
 | --- | --- |

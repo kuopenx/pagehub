@@ -1,26 +1,776 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pagehub · 我的页面</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f3f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111614" media="(prefers-color-scheme: dark)">
+<title>Pagehub · 我的页面</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231f6b5a'/%3E%3Cpath d='M11 8.5h6.5l5 5V22a1.5 1.5 0 0 1-1.5 1.5H11A1.5 1.5 0 0 1 9.5 22V10A1.5 1.5 0 0 1 11 8.5z' fill='%23ffffff'/%3E%3Cpath d='M17.5 8.5v5h5' fill='none' stroke='%231f6b5a' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>document.documentElement.classList.add('js')</script>
 <style>
-:root{color-scheme:light;--ink:#253c36;--muted:#7a877f;--green:#287567;--line:#dedfd5}*{box-sizing:border-box}body{margin:0;background:#f6f4ec;color:var(--ink);font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1100px;margin:auto;padding:48px 28px 32px}header{display:flex;align-items:center;justify-content:space-between;gap:15px}.brand{font-size:13px;font-weight:750;letter-spacing:2.5px}.badge{font-size:11px;color:var(--green);display:flex;align-items:center;gap:7px}.badge:before{content:"";width:6px;height:6px;background:#3b9a77;border-radius:50%}h1{font-size:clamp(30px,5vw,44px);letter-spacing:-1.5px;margin:38px 0 12px;font-weight:650}.intro{font-size:14px;color:var(--muted);line-height:1.8;margin:0}.bar{display:flex;gap:12px;margin:30px 0 25px;align-items:center}form{display:flex;flex:1;border:1px solid var(--line);background:#fffcf5;border-radius:12px;overflow:hidden;max-width:590px}input{min-width:0;flex:1;border:0;background:transparent;padding:15px 17px;color:var(--ink);font:inherit;font-size:14px}button{background:transparent;color:var(--green);border:0;padding:12px 18px;font:inherit;font-size:13px;cursor:pointer}.refresh{border:1px solid var(--line);border-radius:12px;text-decoration:none;font-size:13px;padding:14px 16px;color:var(--ink)}input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:-3px}.summary{font-size:12px;color:var(--muted);margin:0 0 15px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:16px}.card{position:relative;border:1px solid var(--line);border-radius:17px;background:#fffdf7;padding:23px;display:flex;flex-direction:column;min-width:0;transition:box-shadow .15s,border-color .15s}.card:hover{border-color:#a8b8a8;box-shadow:0 4px 18px #253c3608}.cardtop{display:flex;align-items:center;justify-content:space-between;gap:15px}.icon{display:grid;place-items:center;width:37px;height:37px;background:#e8eee0;color:var(--green);border-radius:11px;font:600 16px monospace}.format{font:11px monospace;color:var(--muted);letter-spacing:1px}h2{margin:20px 0 17px;font-size:19px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:38px 1fr;gap:9px;margin:0;font-size:11px;color:var(--muted)}dt,dd{margin:0}time{font-variant-numeric:tabular-nums}.id{font-family:monospace;overflow-wrap:anywhere;font-size:10px;color:#879388}.cardbottom{margin-top:23px;padding-top:16px;border-top:1px solid #e9e9df;display:flex;align-items:center;justify-content:space-between;gap:12px}.open{color:var(--green);font-size:13px;text-decoration:none;font-weight:600}.open::after{content:"";position:absolute;inset:0;border-radius:17px}.open:focus-visible{outline:none}.open:focus-visible::after{outline:2px solid var(--green);outline-offset:3px}.copy{position:relative;z-index:1;font-size:11px;padding:5px 0;color:var(--muted)}.empty{padding:65px 20px;border:1px dashed #ccd3c3;border-radius:18px;text-align:center;color:var(--muted);line-height:1.9}.empty strong{display:block;color:var(--ink);font-size:19px;margin-bottom:8px;font-weight:550}footer{margin-top:35px;border-top:1px solid var(--line);padding-top:19px;color:var(--muted);font-size:11px;line-height:1.9}.addresses{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px}.addresses a{color:var(--green);text-decoration:none;font-family:monospace}.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;border-radius:10px;padding:10px 17px;font-size:12px;display:none}@media(max-width:600px){main{padding:28px 18px}.grid{grid-template-columns:1fr}h1{margin-top:30px}.bar{gap:8px}.refresh{padding:14px 12px}.card{padding:21px}}@media(prefers-reduced-motion:reduce){.card{transition:none}}
+/* Draft paper: cool paper desk, white sheets, pine ink; marker yellow is reserved for search hits. */
+:root{
+  color-scheme:light dark;
+  --paper:#f2f3f0;--sheet:#ffffff;--sheet-2:#eceeea;--ink:#16211d;--muted:#4c5852;--faint:#58645e;
+  --line:#dfe3dd;--line-2:#cad0c8;--pine:#1f6b5a;--pine-soft:#e0ebe5;--marker:#f6d55c;--ok:#2f9a76;--warn:#9a5520;
+  --fold-s:46%;--fold-l:76%;
+  --lift:0 1px 2px rgb(22 33 29/.05);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --radius:14px;
+  --font:system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#111614;--sheet:#181e1b;--sheet-2:#1f2623;--ink:#e6ebe7;--muted:#a3aea8;--faint:#94a09a;
+  --line:#262e2a;--line-2:#36403b;--pine:#6fc7aa;--pine-soft:#1c362e;--marker:#a8892a;--ok:#4cc495;--warn:#e0a060;
+  --fold-s:30%;--fold-l:36%;
+  --lift:0 1px 2px rgb(0 0 0/.35);
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:76px;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--paper);color:var(--ink);font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+a,button,input{touch-action:manipulation}
+html:not(.js) .js-only{display:none!important}
+.js .nojs-only{display:none!important}
+[hidden]{display:none!important}
+:where(a,button,input):focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wrap{width:100%;max-width:1160px;margin:0 auto;padding:0 28px}
+code{font:13px var(--mono);background:var(--sheet-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.skip{position:absolute;left:12px;top:-60px;z-index:50;padding:8px 14px;border-radius:10px;background:var(--ink);color:var(--paper);font-size:13px;text-decoration:none}
+.skip:focus{top:12px}
+
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 86%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid transparent;transition:border-color .2s ease}
+.top.scrolled{border-bottom-color:var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-weight:700;font-size:16px;letter-spacing:-.01em}
+.logo{width:28px;height:28px}.logo .bg{fill:var(--pine)}.logo .pg{fill:var(--sheet)}.logo .fold{fill:none;stroke:var(--pine);stroke-width:1.5;stroke-linejoin:round}
+.top-actions{display:flex;align-items:center;gap:14px}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--warn);white-space:nowrap}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
+.status .st{display:none}
+.status.off i{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent)}
+.status.off .st{display:inline}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 14px;border:1px solid var(--line-2);border-radius:11px;background:var(--sheet);color:var(--ink);font:500 13px var(--font);text-decoration:none;cursor:pointer;white-space:nowrap;transition:border-color .15s ease,color .15s ease,transform .16s var(--ease-out)}
+.btn.spin .i{animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+:is(.btn,.act,.seg button,.chip,.x,.clear,.pill button):active{transform:scale(.97)}
+
+main{flex:1;padding:28px 0 48px}
+.head{margin-bottom:18px}
+h1{margin:0;font-size:30px;line-height:1.2;letter-spacing:-.025em;font-weight:750;text-wrap:balance}
+.summary{margin:6px 0 0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:22px}
+.search{position:relative;display:flex;align-items:center;flex:1 1 320px;max-width:520px;height:42px;background:var(--sheet);border:1px solid var(--line-2);border-radius:12px;transition:border-color .15s ease,box-shadow .15s ease}
+.search:focus-within{border-color:var(--pine);box-shadow:0 0 0 3px color-mix(in srgb,var(--pine) 20%,transparent)}
+.search>.i{position:absolute;left:13px;width:17px;height:17px;color:var(--faint);pointer-events:none}
+.search input{flex:1;min-width:0;height:100%;border:0;background:transparent;padding:0 12px 0 40px;color:var(--ink);font:inherit;font-size:14px;outline:none}
+.search input::placeholder{color:var(--faint)}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.search kbd{margin-right:10px;padding:0 7px;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:6px;background:var(--sheet-2);color:var(--muted);font:500 11px/18px var(--mono)}
+.search:focus-within kbd,.search input:not(:placeholder-shown)~kbd{display:none}
+.search .clear{display:grid;place-items:center;width:28px;height:28px;margin-right:7px;padding:0;border:0;border-radius:50%;background:var(--sheet-2);color:var(--muted);cursor:pointer;transition:color .15s ease,transform .16s var(--ease-out)}
+.search .clear .i{width:14px;height:14px}
+.search input:placeholder-shown~.clear{display:none}
+.search button[type=submit]{height:100%;padding:0 16px;border:0;border-left:1px solid var(--line);background:transparent;color:var(--pine);font:500 13px var(--font);cursor:pointer}
+.seg{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:12px;background:var(--sheet-2)}
+.seg button{height:34px;padding:0 13px;border:0;border-radius:9px;background:transparent;color:var(--muted);font:500 13px var(--font);cursor:pointer;white-space:nowrap;transition:color .15s ease,transform .16s var(--ease-out)}
+.seg button[aria-pressed=true]{background:var(--sheet);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0/.08),0 0 0 1px var(--line)}
+.toolbar .refresh{margin-left:auto}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{position:relative;display:flex;flex-direction:column;min-width:0;padding:20px 22px 14px;background:var(--sheet);border:1px solid var(--line);border-radius:var(--radius);border-top-right-radius:0;box-shadow:var(--lift);content-visibility:auto;contain-intrinsic-size:auto 168px;transition:border-color .15s ease,transform .16s var(--ease-out)}
+.card::before{content:"";position:absolute;top:-1px;right:-1px;width:26px;height:26px;background:linear-gradient(225deg,var(--paper) 0 50%,hsl(var(--h) var(--fold-s) var(--fold-l)) 50% 100%);border-bottom-left-radius:5px;box-shadow:-1px 1px 2px rgb(22 33 29/.1)}
+.card::after{content:"";position:absolute;inset:-1px;border-radius:inherit;box-shadow:0 0 0 3px color-mix(in srgb,var(--pine) 45%,transparent);opacity:0;pointer-events:none;transition:opacity 1.2s ease-out}
+.card.fresh::after{opacity:1;transition:none}
+.card:has(.open:active){transform:scale(.99)}
+.card h2{margin:0 24px 0 0;font-size:16px;line-height:1.45;font-weight:650;overflow-wrap:anywhere;text-wrap:pretty;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+mark{background:color-mix(in srgb,var(--marker) 70%,transparent);color:inherit;border-radius:3px}
+.meta{margin:8px 0 0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta .sep{margin:0 6px;color:var(--line-2)}
+.meta .crt,[data-sort=created] .meta .upd{display:none}
+[data-sort=created] .meta .crt{display:inline}
+.id{display:block;margin-top:2px;font:12px var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:12px}
+.card-title{margin-bottom:14px}
+.open{display:inline-flex;align-items:center;gap:6px;color:var(--pine);font-size:14px;font-weight:600;text-decoration:none}
+.open .i{width:15px;height:15px;transition:transform .16s var(--ease-out)}
+.open::after{content:"";position:absolute;inset:0;border-radius:var(--radius) 0 var(--radius) var(--radius)}
+.open:focus-visible{outline:none}
+.open:focus-visible::after{outline:2px solid var(--pine);outline-offset:3px}
+.enter{display:none;margin-left:4px;padding:0 6px;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:6px;background:var(--sheet-2);color:var(--muted);font:500 11px/18px var(--font)}
+.searching .first-hit .enter{display:inline-block}
+.actions{position:relative;z-index:1;display:flex;gap:2px;margin-right:-8px}
+.act{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:var(--muted);font:500 13px var(--font);cursor:pointer;transition:background .15s ease,color .15s ease,transform .16s var(--ease-out)}
+.act .ok,.act.done .link{display:none}
+.act.done .ok{display:block}
+.act.done{color:var(--pine)}
+
+.empty{padding:56px 24px;border:1px dashed var(--line-2);border-radius:var(--radius);text-align:center;color:var(--muted)}
+.empty strong{display:block;margin-bottom:6px;color:var(--ink);font-size:17px;font-weight:600;overflow-wrap:anywhere}
+.empty .btn{margin-top:16px}
+.hero{padding:28px 0 26px}
+.hero h1{font-size:clamp(32px,5vw,46px);letter-spacing:-.03em}
+.intro{margin:12px 0 0;color:var(--muted);font-size:15px}
+.onboard{padding:28px;background:var(--sheet);border:1px solid var(--line);border-radius:18px;box-shadow:var(--lift)}
+.onboard h2{margin:0 0 20px;font-size:18px}
+.steps{display:grid;gap:20px;margin:0;padding:0;list-style:none;counter-reset:step}
+.steps li{display:grid;grid-template-columns:32px 1fr;gap:2px 14px;counter-increment:step}
+.steps li::before{content:counter(step);grid-row:span 3;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--pine-soft);color:var(--pine);font-size:14px;font-weight:700}
+.steps b{font-weight:600}
+.steps span{color:var(--muted);font-size:14px}
+.prompt{display:flex;align-items:flex-start;gap:12px;margin-top:8px;padding:12px 12px 12px 16px;background:var(--sheet-2);border-radius:12px}
+.prompt p{flex:1;margin:0;font-size:14px}
+.prompt .btn{height:32px;padding:0 12px}
+
+.foot{border-top:1px solid var(--line);padding:20px 0 calc(26px + env(safe-area-inset-bottom));color:var(--muted);font-size:13px}
+.foot .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px}
+.foot p{margin:0}
+.lan{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px}
+.lan a{color:var(--pine);font-family:var(--mono);text-decoration:none}
+
+.pill{position:fixed;top:70px;left:50%;z-index:30;opacity:0;transform:translate(-50%,-8px);pointer-events:none;transition:opacity .12s ease-out,transform .12s ease-out}
+.pill.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;transition:opacity .2s var(--ease-out),transform .2s var(--ease-out)}
+.pill button{display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 16px;border:0;border-radius:999px;background:var(--ink);color:var(--paper);font:500 13px var(--font);box-shadow:0 12px 30px -10px rgb(0 0 0/.45);cursor:pointer;white-space:nowrap;transition:transform .16s var(--ease-out)}
+.pill b{padding:5px 11px;border-radius:999px;background:color-mix(in srgb,var(--paper) 20%,transparent);font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--paper);font-size:13px;box-shadow:0 12px 30px -10px rgb(0 0 0/.45);opacity:0;transform:translate(-50%,12px);pointer-events:none;transition:opacity .12s ease-out,transform .12s ease-out}
+.toast.show{opacity:1;transform:translate(-50%,0);transition:opacity .2s var(--ease-out),transform .2s var(--ease-out)}
+
+dialog{width:min(360px,calc(100vw - 32px));padding:0;border:0;border-radius:20px;background:var(--sheet);color:var(--ink);box-shadow:0 30px 80px -20px rgb(0 0 0/.5);overscroll-behavior:contain}
+dialog[open]{animation:pop .2s var(--ease-out)}
+dialog::backdrop{background:rgb(12 18 15/.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}}
+@keyframes fade{from{opacity:0}}
+.qr{position:relative;padding:24px;text-align:center}
+.qr h2{margin:0;font-size:17px}
+.qr-sub{margin:4px 32px 16px;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.qr-code{width:224px;margin:0 auto;padding:6px;background:#fff;border:1px solid var(--line);border-radius:14px}
+.qr-code svg{display:block;width:100%;height:auto}
+.qr-code p{margin:40px 8px;color:#4c5852;font-size:13px}
+.qr-hosts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:14px}
+.chip{height:30px;padding:0 11px;border:1px solid var(--line-2);border-radius:999px;background:transparent;color:var(--muted);font:12px var(--mono);cursor:pointer;transition:transform .16s var(--ease-out)}
+.chip[aria-pressed=true]{border-color:var(--pine);background:var(--pine-soft);color:var(--pine)}
+.qr-url{display:flex;align-items:center;gap:8px;margin-top:14px;padding:6px 6px 6px 12px;background:var(--sheet-2);border-radius:11px}
+.qr-url code{flex:1;min-width:0;padding:0;border:0;background:none;font-size:12px;text-align:left;overflow-wrap:anywhere}
+.qr-url .btn{height:32px;padding:0 12px}
+.qr-note{margin:12px 0 0;color:var(--muted);font-size:12px}
+.x{position:absolute;top:12px;right:12px;display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer;transition:background .15s ease,transform .16s var(--ease-out)}
+.x .i{width:18px;height:18px}
+
+@media (hover:hover) and (pointer:fine){
+  .btn:hover{border-color:var(--pine);color:var(--pine)}
+  .search .clear:hover,.seg button:hover{color:var(--ink)}
+  .card:hover{border-color:color-mix(in srgb,hsl(var(--h) 45% 45%) 45%,var(--line))}
+  .card:hover .open .i{transform:translateX(3px)}
+  .act:hover,.x:hover{background:var(--sheet-2);color:var(--ink)}
+  .lan a:hover{text-decoration:underline}
+}
+@media (hover:none){
+  .search kbd,.enter{display:none!important}
+  .act{height:40px}
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  main{padding-top:18px}
+  h1{font-size:25px}
+  .top-actions{gap:10px}
+  .top .btn span{display:none}
+  .top .btn{width:38px;padding:0}
+  .search{flex-basis:100%;max-width:none}
+  .seg{flex:1}
+  .seg button{flex:1;padding:0 8px}
+  .grid{grid-template-columns:1fr;gap:12px}
+  .card{padding:16px 18px 10px}
+  .onboard{padding:20px}
+}
+@media (prefers-reduced-motion:reduce){
+  :is(.btn,.act,.seg button,.chip,.x,.clear,.pill button):active,.card:has(.open:active){transform:none}
+  .pill,.pill.show,.toast,.toast.show{transform:translate(-50%,0)}
+  .card:hover .open .i{transform:none}
+  dialog[open]{animation:fade .15s ease-out}
+  .btn.spin .i{animation-duration:1.6s}
+}
 </style>
 </head>
-<body><main>
-<header><span class="brand">PAGEHUB</span><span class="badge">本地服务运行中</span></header>
-<h1>你的页面，都在这里。</h1><p class="intro">把想法留成一个页面，随时从电脑或手机打开。</p>
-<div class="bar"><form method="get" action="/" role="search"><input type="search" name="q" value="{{.Query}}" placeholder="搜索标题或页面 ID" aria-label="搜索标题或页面 ID"><button type="submit">搜索</button></form><a class="refresh" href="/?q={{.Query}}">↻ 刷新</a></div>
-<p class="summary">{{if .Query}}找到 {{len .Pages}} 个页面 · 共 {{.Count}} 个{{else}}共 {{.Count}} 个页面 · 按创建时间排序{{end}}</p>
-{{if .Pages}}<section class="grid" aria-label="页面集合">{{range .Pages}}
-<article class="card"><div class="cardtop"><span class="icon" aria-hidden="true">&lt;/&gt;</span><span class="format">HTML · <span class="bytes" data-bytes="{{.SizeBytes}}">{{.SizeBytes}} B</span></span></div>
-<h2>{{.Title}}</h2><dl><dt>创建</dt><dd><time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.CreatedAt.Format "2006-01-02 15:04:05"}} UTC</time></dd><dt>更新</dt><dd><time datetime="{{.UpdatedAt.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.UpdatedAt.Format "2006-01-02 15:04:05"}} UTC</time></dd><dt>ID</dt><dd class="id">{{.ID}}</dd></dl>
-<div class="cardbottom"><a class="open" href="/{{.ID}}/" target="_blank" rel="noopener" aria-label="打开页面：{{.Title}}（新标签页）">打开页面 ↗</a><button type="button" class="copy" data-path="/{{.ID}}/">复制链接</button></div></article>
-{{end}}</section>{{else}}<div class="empty"><strong>{{if .Query}}没有找到匹配的页面{{else}}第一张页面，从这里开始{{end}}</strong>{{if .Query}}换一个标题或页面 ID 搜索。{{else}}发布页面后，刷新这里即可看到。{{end}}</div>{{end}}
-<footer>页面增删改后，刷新即可看到最新内容。{{if .LANURLs}}<div>手机与电脑连接同一局域网，打开：</div><div class="addresses">{{range .LANURLs}}<a href="{{.}}">{{.}}</a>{{end}}</div>{{end}}</footer>
-</main><div class="toast" role="status" aria-live="polite" id="toast"></div>
+<body data-count="{{.Count}}">
+<a class="skip" href="#main">跳到页面列表</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="/" translate="no"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect class="bg" width="32" height="32" rx="9"/><path class="pg" d="M11 8.5h6.5l5 5V22a1.5 1.5 0 0 1-1.5 1.5H11A1.5 1.5 0 0 1 9.5 22V10A1.5 1.5 0 0 1 11 8.5z"/><path class="fold" d="M17.5 8.5v5h5"/></svg>Pagehub</a>
+<div class="top-actions">
+<span class="status" id="status" title="已连接 Pagehub"><i aria-hidden="true"></i><span class="st" role="status">连接中断</span></span>
+{{if .LANURLs}}<button type="button" class="btn js-only" data-qr-home aria-label="用手机扫码打开页面列表"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg><span>手机打开</span></button>{{end}}
+</div>
+</div></header>
+
+<main id="main" tabindex="-1"><div class="wrap">
+{{if .Count}}
+<div class="head"><h1>我的页面</h1><p class="summary" id="summary" aria-live="polite">{{if .Query}}找到 {{len .Pages}} 个页面 · 共 {{.Count}} 个{{else}}共 {{.Count}} 个页面 · 按创建时间排序{{end}}</p></div>
+<div class="toolbar">
+<form class="search" method="get" action="/" role="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" name="q" value="{{.Query}}" placeholder="搜索标题或页面 ID…" aria-label="搜索标题或页面 ID" autocomplete="off" spellcheck="false" enterkeyhint="go"><kbd class="js-only" aria-hidden="true" title="按 / 快速搜索">/</kbd><button type="button" class="clear js-only" data-clear aria-label="清空搜索"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button><button type="submit" class="nojs-only">搜索</button></form>
+<div class="seg js-only" role="group" aria-label="排序方式"><button type="button" data-sort="updated" aria-pressed="false">最近更新</button><button type="button" data-sort="created" aria-pressed="false">最近创建</button><button type="button" data-sort="title" aria-pressed="false">标题</button></div>
+<a class="btn refresh" id="refresh" href="/?q={{.Query}}" title="刷新页面列表"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.9M4 4v3.5h3.5M4 13a8 8 0 0 0 14.9 3.9M20 20v-3.5h-3.5"/></svg><span>刷新</span></a>
+</div>
+<section class="grid" id="grid" aria-label="页面列表">{{range .Pages}}
+<article class="card" data-id="{{.ID}}" data-title="{{.Title}}" data-created="{{.CreatedAt.Format "2006-01-02T15:04:05.999999999Z07:00"}}" data-updated="{{.UpdatedAt.Format "2006-01-02T15:04:05.999999999Z07:00"}}" style="--h:{{hue .ID}}">
+<div class="card-title"><h2>{{.Title}}</h2><p class="meta"><span class="upd"><time datetime="{{.UpdatedAt.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.UpdatedAt.Format "2006-01-02 15:04"}} UTC</time>更新</span><span class="crt"><time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.CreatedAt.Format "2006-01-02 15:04"}} UTC</time>创建</span><span class="sep" aria-hidden="true">·</span>第 {{.Revision}} 版<span class="sep" aria-hidden="true">·</span><span data-bytes="{{.SizeBytes}}">{{.SizeBytes}} B</span></p><span class="id" translate="no" title="{{.ID}}">{{.ID}}</span></div>
+<div class="card-foot"><a class="open" href="/{{.ID}}/" aria-label="打开页面：{{.Title}}">打开页面<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg><kbd class="enter" aria-hidden="true">↵ 回车</kbd></a><div class="actions js-only"><button type="button" class="act" data-copy aria-label="复制链接：{{.Title}}"><svg class="i link" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg><svg class="i ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span>复制链接</span></button><button type="button" class="act" data-qr aria-label="扫码打开：{{.Title}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 19.5h1.5M19.5 14v1.5"/></svg><span>扫码</span></button></div></div>
+</article>{{end}}
+</section>
+<div class="empty" id="noresult"{{if .Pages}} hidden{{end}}><strong id="noresult-title">没有找到匹配的页面</strong>换一个标题或页面 ID 搜索。<br><button type="button" class="btn js-only" data-clear>清空搜索</button></div>
+{{else}}
+<section class="hero"><h1>你的页面，都在这里。</h1><p class="intro">把想法留成一个页面，随时从电脑或手机打开。</p></section>
+<section class="onboard" aria-labelledby="onboard-title"><h2 id="onboard-title">发布第一个页面</h2><ol class="steps">
+<li><b>连接 AI 客户端</b><span>在终端运行 <code translate="no">pagehub connect codex</code> 或 <code translate="no">pagehub connect claude</code>，然后重新打开客户端会话。</span></li>
+<li><b>让它生成页面</b><span>比如这样说：</span><div class="prompt"><p id="example-prompt">用 Pagehub 帮我做一个单文件 HTML 页面：本周待办清单，可以勾选完成。</p><button type="button" class="btn js-only" data-copy-text="#example-prompt">复制</button></div></li>
+<li><b>回到这里打开</b><span>新页面发布后，这里会自动提示，点一下就能看到；也可以扫码在手机上打开。</span></li>
+</ol></section>
+{{end}}
+</div></main>
+
+<footer class="foot"><div class="wrap">
+<p><span translate="no">Pagehub{{if .Version}} v{{.Version}}{{end}}</span> · 页面在局域网内无需登录即可访问<span class="nojs-only"> · 页面增删改后刷新即可看到</span></p>
+{{if .LANURLs}}<div class="lan"><span>局域网地址</span>{{range .LANURLs}}<a href="{{.}}" translate="no">{{.}}</a>{{end}}</div>{{end}}
+</div></footer>
+
+<div class="pill" id="pill" role="status" aria-live="polite"><button type="button"><span id="pill-text">页面列表有变化</span><b>刷新</b></button></div>
+<dialog id="qr" aria-labelledby="qr-title"><div class="qr">
+<form method="dialog"><button class="x" aria-label="关闭"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
+<h2 id="qr-title">用手机扫码打开</h2><p class="qr-sub" id="qr-sub"></p>
+<div class="qr-code" id="qr-code" role="img" aria-label="二维码"></div>
+<div class="qr-hosts" id="qr-hosts" role="group" aria-label="选择局域网地址" hidden></div>
+<div class="qr-url"><code id="qr-url" translate="no"></code><button type="button" class="btn" id="qr-copy"><span>复制</span></button></div>
+<p class="qr-note" id="qr-note"></p>
+</div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script>
-document.querySelectorAll('time').forEach(el=>{const d=new Date(el.dateTime);if(!Number.isNaN(d.getTime()))el.textContent=d.toLocaleString(undefined,{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})});
-document.querySelectorAll('.bytes').forEach(el=>{const b=Number(el.dataset.bytes);el.textContent=b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB'});
-let toastTimer;function toast(text){const el=document.getElementById('toast');el.textContent=text;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.display='none',2200)}
-document.querySelectorAll('.copy').forEach(btn=>btn.addEventListener('click',async()=>{const link=new URL(btn.dataset.path,location.origin).href;try{if(!navigator.clipboard)throw new Error('clipboard unavailable');await navigator.clipboard.writeText(link);toast('链接已复制')}catch{window.prompt('复制页面链接：',link)}}));
-</script></body></html>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const body = document.body;
+  const grid = $('#grid');
+  const input = $('#q');
+  const summary = $('#summary');
+  const noresult = $('#noresult');
+  const refreshBtn = $('#refresh');
+  const pill = $('#pill');
+  const statusEl = $('#status');
+  const dlg = $('#qr');
+  const lanBases = $$('.lan a').map(a => a.href);
+  const loopback = /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])$/.test(location.hostname);
+  let total = Number(body.dataset.count) || 0;
+  let busy = false;
+
+  // ---- formatting ----
+  const parseTime = s => new Date(String(s).replace(/(\.\d{3})\d+/, '$1'));
+  const fullFmt = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const rtf = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'auto' });
+  function relative(d) {
+    const diff = (d.getTime() - Date.now()) / 1000;
+    if (diff > -45) return '刚刚';
+    if (diff > -3600) return rtf.format(Math.round(diff / 60), 'minute');
+    if (diff > -86400) return rtf.format(Math.round(diff / 3600), 'hour');
+    if (diff > -86400 * 7) return rtf.format(Math.round(diff / 86400), 'day');
+    const sameYear = d.getFullYear() === new Date().getFullYear();
+    return d.toLocaleDateString('zh-CN', sameYear ? { month: 'long', day: 'numeric' } : { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  const formatBytes = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+  function renderTimes(root) {
+    $$('time[datetime]', root).forEach(el => {
+      const d = parseTime(el.getAttribute('datetime'));
+      if (Number.isNaN(d.getTime())) return;
+      if (!el.closest('.meta')) el.title = fullFmt.format(d);
+      el.textContent = relative(d);
+    });
+  }
+  function enhance(root) {
+    renderTimes(root);
+    $$('.card', root).forEach(c => {
+      const full = k => { const d = parseTime(c.dataset[k]); return Number.isNaN(d.getTime()) ? '' : fullFmt.format(d); };
+      $('.meta', c).title = `更新：${full('updated')}\n创建：${full('created')}`;
+    });
+    $$('[data-bytes]', root).forEach(el => { el.textContent = formatBytes(Number(el.dataset.bytes)); });
+  }
+
+  // ---- feedback ----
+  const toastEl = $('#toast');
+  let toastTimer;
+  function toast(text) {
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  }
+  function flash(btn, text = '已复制') {
+    const label = $('span', btn) || btn;
+    if (!btn.dataset.label) btn.dataset.label = label.textContent;
+    label.textContent = text;
+    btn.classList.add('done');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { label.textContent = btn.dataset.label; btn.classList.remove('done'); }, 1600);
+  }
+  async function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try { await navigator.clipboard.writeText(text); return true; } catch {}
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    (dlg.open ? dlg : body).append(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch {}
+    ta.remove();
+    if (!ok) window.prompt('复制链接：', text);
+    return ok;
+  }
+
+  // ---- search and sort ----
+  const sortLabels = { updated: '最近更新', created: '最近创建', title: '标题' };
+  const collator = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' });
+  let sortKey = 'updated';
+  try { if (sortLabels[localStorage.getItem('pagehub.sort')]) sortKey = localStorage.getItem('pagehub.sort'); } catch {}
+  const urlSort = new URLSearchParams(location.search).get('sort');
+  if (sortLabels[urlSort]) sortKey = urlSort;
+  const stamp = (c, k) => parseTime(c.dataset[k]).getTime() || 0;
+  function compare(a, b) {
+    if (sortKey === 'title') return collator.compare(a.dataset.title, b.dataset.title) || stamp(b, 'created') - stamp(a, 'created');
+    return stamp(b, sortKey) - stamp(a, sortKey) || (a.dataset.id < b.dataset.id ? 1 : -1);
+  }
+  function highlight(el, text, q) {
+    const lower = text.toLowerCase();
+    const i = q ? lower.indexOf(q) : -1;
+    if (i < 0 || lower.length !== text.length) {
+      if (el.firstElementChild || el.textContent !== text) el.textContent = text;
+      return;
+    }
+    const m = document.createElement('mark');
+    m.textContent = text.slice(i, i + q.length);
+    el.replaceChildren(text.slice(0, i), m, text.slice(i + q.length));
+  }
+  function apply() {
+    if (!grid) return;
+    const q = input.value.trim().toLowerCase();
+    const list = $$('.card', grid);
+    const sorted = list.slice().sort(compare);
+    if (sorted.some((c, i) => c !== list[i])) grid.append(...sorted);
+    let shown = 0;
+    for (const c of sorted) {
+      const hit = !q || c.dataset.title.toLowerCase().includes(q) || c.dataset.id.includes(q);
+      c.hidden = !hit;
+      c.classList.toggle('first-hit', hit && shown === 0);
+      if (hit) shown++;
+      highlight($('h2', c), c.dataset.title, q);
+      highlight($('.id', c), c.dataset.id, q);
+    }
+    grid.classList.toggle('searching', !!q);
+    summary.textContent = q ? `找到 ${shown} 个页面 · 共 ${total} 个` : `共 ${total} 个页面 · 按${sortLabels[sortKey]}排序`;
+    noresult.hidden = shown > 0;
+    $('#noresult-title').textContent = q ? `没有找到与“${input.value.trim()}”匹配的页面` : '没有页面';
+  }
+  function syncURL() {
+    const q = input.value.trim();
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (sortKey !== 'updated') params.set('sort', sortKey);
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    refreshBtn.href = '/' + (q ? '?q=' + encodeURIComponent(q) : '');
+  }
+  function onSearch() {
+    apply();
+    syncURL();
+  }
+  function setSort(key) {
+    sortKey = key;
+    body.dataset.sort = key;
+    try { localStorage.setItem('pagehub.sort', key); } catch {}
+    $$('[data-sort]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sort === key)));
+    apply();
+    syncURL();
+  }
+
+  // ---- live updates ----
+  const cardKey = c => c.dataset.updated + '|' + c.dataset.title;
+  const snapshot = root => new Map($$('.card', root).map(c => [c.dataset.id, cardKey(c)]));
+  function describe(doc) {
+    const a = snapshot(document), b = snapshot(doc);
+    let added = 0, changed = 0, removed = 0;
+    b.forEach((k, id) => { if (!a.has(id)) added++; else if (a.get(id) !== k) changed++; });
+    a.forEach((_, id) => { if (!b.has(id)) removed++; });
+    const parts = [];
+    if (added) parts.push(`${added} 个新页面`);
+    if (changed) parts.push(`${changed} 个页面有改动`);
+    if (removed) parts.push(`${removed} 个页面已删除`);
+    return parts.join(' · ');
+  }
+  const structural = doc => !!grid !== !!doc.getElementById('grid');
+  function setOnline(ok) {
+    statusEl.classList.toggle('off', !ok);
+    statusEl.title = ok ? '已连接 Pagehub' : '连不上 Pagehub，会自动重试';
+  }
+  async function load() {
+    let res;
+    try { res = await fetch('/', { cache: 'no-store' }); } catch (e) { setOnline(false); throw e; }
+    if (!res.ok) { setOnline(false); throw new Error('HTTP ' + res.status); }
+    setOnline(true);
+    return new DOMParser().parseFromString(await res.text(), 'text/html');
+  }
+  function showPill(text) { $('#pill-text').textContent = text; pill.classList.add('show'); }
+  function hidePill() { pill.classList.remove('show'); }
+  function applyDoc(doc, quiet) {
+    const before = snapshot(document);
+    const cards = $$('.card', doc.getElementById('grid')).map(c => document.adoptNode(c));
+    grid.replaceChildren(...cards);
+    total = Number(doc.body.dataset.count) || cards.length;
+    body.dataset.count = total;
+    enhance(grid);
+    if (!quiet) for (const c of cards) {
+      if (before.get(c.dataset.id) === cardKey(c)) continue;
+      c.classList.add('fresh');
+      setTimeout(() => c.classList.remove('fresh'), 900);
+    }
+    hidePill();
+    apply();
+  }
+  async function check() {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const doc = await load();
+      const text = describe(doc);
+      if (structural(doc)) showPill(grid ? '页面已全部删除' : '有新页面');
+      else if (text) showPill(text);
+      else hidePill();
+    } catch {} finally { busy = false; }
+  }
+  async function refreshNow() {
+    if (!grid) { location.reload(); return; }
+    if (busy) return;
+    busy = true;
+    refreshBtn.classList.add('spin');
+    try {
+      const doc = await load();
+      if (structural(doc)) { location.reload(); return; }
+      const text = describe(doc);
+      applyDoc(doc, false);
+      toast(text ? '已更新：' + text : '已经是最新');
+    } catch {
+      toast('连不上 Pagehub：确认电脑没有休眠，且 Pagehub 服务正在运行');
+    } finally {
+      busy = false;
+      setTimeout(() => refreshBtn.classList.remove('spin'), 300);
+    }
+  }
+
+  // ---- QR dialog ----
+  let qrBases = [], qrIdx = 0, qrPath = '/';
+  const qrURL = () => new URL(qrPath, qrBases[qrIdx]).href;
+  function drawQR() {
+    const url = qrURL();
+    $('#qr-url').textContent = url;
+    const box = $('#qr-code');
+    box.replaceChildren(qrSVG(url));
+    box.setAttribute('aria-label', '二维码：' + url);
+    $$('.chip', dlg).forEach((c, i) => c.setAttribute('aria-pressed', String(i === qrIdx)));
+  }
+  function openQR(title, path) {
+    qrBases = lanBases.length ? lanBases : [location.origin + '/'];
+    qrPath = path;
+    qrIdx = Math.max(0, qrBases.findIndex(b => new URL(b).host === location.host));
+    $('#qr-sub').textContent = title;
+    const hosts = $('#qr-hosts');
+    hosts.replaceChildren(...(qrBases.length > 1 ? qrBases.map((b, i) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.dataset.host = i;
+      chip.textContent = new URL(b).hostname;
+      return chip;
+    }) : []));
+    hosts.hidden = qrBases.length < 2;
+    $('#qr-note').textContent = lanBases.length ? '手机需要和这台电脑连在同一个局域网（Wi-Fi）。'
+      : loopback ? '没有检测到局域网地址，这个链接只能在本机打开。' : '用同一网络里的手机扫码即可打开。';
+    drawQR();
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+
+  // ---- events ----
+  document.addEventListener('click', e => {
+    const el = e.target.closest('button,a');
+    if (!el) return;
+    const card = el.closest('.card');
+    if (el.matches('[data-copy]') && card) {
+      const lan = loopback && lanBases.length > 0;
+      const url = new URL('/' + card.dataset.id + '/', lan ? lanBases[0] : location.origin).href;
+      copyText(url).then(ok => { if (ok) { flash(el); toast(lan ? '已复制局域网链接，手机可直接打开' : '链接已复制'); } });
+    } else if (el.matches('[data-qr]') && card) {
+      openQR(card.dataset.title, '/' + card.dataset.id + '/');
+    } else if (el.matches('[data-qr-home]')) {
+      openQR('Pagehub 页面列表', '/');
+    } else if (el.matches('[data-host]')) {
+      qrIdx = Number(el.dataset.host);
+      drawQR();
+    } else if (el.id === 'qr-copy') {
+      copyText(qrURL()).then(ok => { if (ok) flash(el); });
+    } else if (el.matches('[data-copy-text]')) {
+      copyText($(el.dataset.copyText).textContent.trim()).then(ok => { if (ok) flash(el); });
+    } else if (el.matches('[data-sort]')) {
+      setSort(el.dataset.sort);
+    } else if (el.matches('[data-clear]')) {
+      input.value = '';
+      onSearch();
+      input.focus();
+    } else if (el === refreshBtn) {
+      e.preventDefault();
+      refreshNow();
+    } else if (el.closest('#pill')) {
+      refreshNow();
+    }
+  });
+  if (input) {
+    input.addEventListener('input', onSearch);
+    input.form.addEventListener('submit', e => {
+      e.preventDefault();
+      onSearch();
+      const first = input.value.trim() && $('.card.first-hit .open', grid);
+      if (first) location.href = first.href;
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (input.value) { input.value = ''; onSearch(); } else input.blur();
+    });
+    document.addEventListener('keydown', e => {
+      if (dlg.open || e.altKey || e.target.closest('input,textarea,select,[contenteditable]')) return;
+      const k = e.key.toLowerCase();
+      if ((k === '/' && !e.metaKey && !e.ctrlKey) || (k === 'k' && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+  }
+  const top = $('.top');
+  const onScroll = () => top.classList.toggle('scrolled', window.scrollY > 4);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ---- start ----
+  enhance(document);
+  if (grid) setSort(sortKey);
+  if (grid && input.value.trim()) {
+    busy = true;
+    load().then(doc => { if (!structural(doc)) applyDoc(doc, true); }).catch(() => {}).finally(() => { busy = false; });
+  }
+  setInterval(() => renderTimes(document), 60000);
+  setInterval(check, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+  window.addEventListener('pageshow', e => { if (e.persisted) check(); });
+
+  // ---- QR encoder (byte mode, error correction level M) ----
+  const EC_PER_BLOCK = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28];
+  const BLOCKS = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49];
+  function rawModules(v) {
+    let r = (16 * v + 128) * v + 64;
+    if (v >= 2) {
+      const n = Math.floor(v / 7) + 2;
+      r -= (25 * n - 10) * n - 55;
+      if (v >= 7) r -= 36;
+    }
+    return r;
+  }
+  function gfMul(x, y) {
+    let z = 0;
+    for (let i = 7; i >= 0; i--) {
+      z = (z << 1) ^ ((z >>> 7) * 0x11d);
+      z ^= ((y >>> i) & 1) * x;
+    }
+    return z;
+  }
+  function rsDivisor(degree) {
+    const r = new Array(degree).fill(0);
+    r[degree - 1] = 1;
+    let root = 1;
+    for (let i = 0; i < degree; i++) {
+      for (let j = 0; j < degree; j++) {
+        r[j] = gfMul(r[j], root);
+        if (j + 1 < degree) r[j] ^= r[j + 1];
+      }
+      root = gfMul(root, 2);
+    }
+    return r;
+  }
+  function rsRemainder(data, divisor) {
+    const r = new Array(divisor.length).fill(0);
+    for (const b of data) {
+      const f = b ^ r.shift();
+      r.push(0);
+      divisor.forEach((c, i) => { r[i] ^= gfMul(c, f); });
+    }
+    return r;
+  }
+  function qrMatrix(text) {
+    const bytes = new TextEncoder().encode(text);
+    let ver = 1, cap = 0;
+    for (; ver <= 40; ver++) {
+      cap = (rawModules(ver) >> 3) - EC_PER_BLOCK[ver] * BLOCKS[ver];
+      if (4 + (ver < 10 ? 8 : 16) + bytes.length * 8 <= cap * 8) break;
+    }
+    if (ver > 40) return null;
+    const bits = [];
+    const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+    put(4, 4);
+    put(bytes.length, ver < 10 ? 8 : 16);
+    bytes.forEach(b => put(b, 8));
+    put(0, Math.min(4, cap * 8 - bits.length));
+    put(0, (8 - bits.length % 8) % 8);
+    for (let pad = 0xec; bits.length < cap * 8; pad ^= 0xec ^ 0x11) put(pad, 8);
+    const data = [];
+    for (let i = 0; i < bits.length; i += 8) data.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b, 0));
+
+    const nb = BLOCKS[ver], ecLen = EC_PER_BLOCK[ver], raw = rawModules(ver) >> 3;
+    const shortLen = Math.floor(raw / nb), nShort = nb - raw % nb, divisor = rsDivisor(ecLen);
+    const blocks = [];
+    for (let i = 0, k = 0; i < nb; i++) {
+      const len = shortLen - ecLen + (i < nShort ? 0 : 1);
+      const d = data.slice(k, k + len);
+      k += len;
+      blocks.push([d, rsRemainder(d, divisor)]);
+    }
+    const codewords = [];
+    for (let i = 0; i <= shortLen - ecLen; i++) for (const [d] of blocks) if (i < d.length) codewords.push(d[i]);
+    for (let i = 0; i < ecLen; i++) for (const [, e] of blocks) codewords.push(e[i]);
+
+    const n = ver * 4 + 17;
+    const M = Array.from({ length: n }, () => new Array(n).fill(false));
+    const F = Array.from({ length: n }, () => new Array(n).fill(false));
+    const set = (x, y, v) => { M[y][x] = v; F[y][x] = true; };
+    for (let i = 0; i < n; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+    const finder = (cx, cy) => {
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+        if (x >= 0 && x < n && y >= 0 && y < n) set(x, y, d !== 2 && d !== 4);
+      }
+    };
+    finder(3, 3); finder(n - 4, 3); finder(3, n - 4);
+    if (ver > 1) {
+      const count = Math.floor(ver / 7) + 2;
+      const step = ver === 32 ? 26 : Math.ceil((ver * 4 + 4) / (count * 2 - 2)) * 2;
+      const pos = [6];
+      for (let p = n - 7; pos.length < count; p -= step) pos.splice(1, 0, p);
+      pos.forEach((y, i) => pos.forEach((x, j) => {
+        if ((i === 0 && j === 0) || (i === 0 && j === count - 1) || (i === count - 1 && j === 0)) return;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(x + dx, y + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+      }));
+    }
+    const drawFormat = mask => {
+      let r = mask;
+      for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537);
+      const b = ((mask << 10) | r) ^ 0x5412;
+      const bit = i => ((b >>> i) & 1) === 1;
+      for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+      set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+      for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+      for (let i = 0; i < 8; i++) set(n - 1 - i, 8, bit(i));
+      for (let i = 8; i < 15; i++) set(8, n - 15 + i, bit(i));
+      set(8, n - 8, true);
+    };
+    drawFormat(0);
+    if (ver >= 7) {
+      let r = ver;
+      for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1f25);
+      const b = (ver << 12) | r;
+      for (let i = 0; i < 18; i++) {
+        const v = ((b >>> i) & 1) === 1, a = n - 11 + i % 3, c = Math.floor(i / 3);
+        set(a, c, v); set(c, a, v);
+      }
+    }
+    for (let right = n - 1, i = 0; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      const up = ((right + 1) & 2) === 0;
+      for (let v = 0; v < n; v++) for (let j = 0; j < 2; j++) {
+        const x = right - j, y = up ? n - 1 - v : v;
+        if (!F[y][x] && i < codewords.length * 8) {
+          M[y][x] = ((codewords[i >>> 3] >>> (7 - (i & 7))) & 1) === 1;
+          i++;
+        }
+      }
+    }
+    const masks = [
+      (x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, x => x % 3 === 0, (x, y) => (x + y) % 3 === 0,
+      (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0,
+      (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0,
+    ];
+    const applyMask = k => {
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!F[y][x] && masks[k](x, y)) M[y][x] = !M[y][x];
+    };
+    let best = 0, bestScore = Infinity;
+    for (let k = 0; k < 8; k++) {
+      applyMask(k);
+      drawFormat(k);
+      const s = penalty(M);
+      if (s < bestScore) { best = k; bestScore = s; }
+      applyMask(k);
+    }
+    applyMask(best);
+    drawFormat(best);
+    return M;
+  }
+  function penalty(M) {
+    const n = M.length;
+    let s = 0, dark = 0;
+    for (let a = 0; a < n; a++) for (const row of [true, false]) {
+      let run = 0, prev = null, pat = 0;
+      for (let b = 0; b < n; b++) {
+        const v = row ? M[a][b] : M[b][a];
+        if (v === prev) { run++; if (run === 5) s += 3; else if (run > 5) s++; } else { run = 1; prev = v; }
+        pat = ((pat << 1) | v) & 0x7ff;
+        if (b >= 10 && (pat === 0x5d0 || pat === 0x05d)) s += 40;
+      }
+    }
+    for (let y = 0; y < n - 1; y++) for (let x = 0; x < n - 1; x++) {
+      const c = M[y][x];
+      if (c === M[y][x + 1] && c === M[y + 1][x] && c === M[y + 1][x + 1]) s += 3;
+    }
+    for (const row of M) for (const v of row) if (v) dark++;
+    return s + Math.max(0, Math.ceil(Math.abs(dark * 20 - n * n * 10) / (n * n)) - 1) * 10;
+  }
+  function qrSVG(text) {
+    const M = qrMatrix(text);
+    if (!M) {
+      const p = document.createElement('p');
+      p.textContent = '链接太长，无法生成二维码。';
+      return p;
+    }
+    const quiet = 4, size = M.length + quiet * 2;
+    let d = '';
+    M.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (!row[x]) continue;
+        let w = 1;
+        while (row[x + w]) w++;
+        d += `M${x + quiet} ${y + quiet}h${w}v1h-${w}z`;
+        x += w - 1;
+      }
+    });
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', '#111');
+    svg.append(path);
+    return svg;
+  }
+})();
+</script>
+</body>
+</html>
