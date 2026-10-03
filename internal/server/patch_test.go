@@ -16,7 +16,7 @@ func TestReadPatchAtomicityAndRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := "<html>\r\n" + strings.Repeat("鹈", 30000) + "\r\nhello\r\n</html>\r\n"
-	p, err := s.Create("test", source)
+	p, err := s.Create("test", source, "test-model / high")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestReadPatchAtomicityAndRevision(t *testing.T) {
 		{{"<html>", "<fragment>"}},
 	}
 	for _, edits := range failed {
-		if _, err := s.Patch(p.ID, 1, edits); err == nil {
+		if _, err := s.Patch(p.ID, 1, edits, "test-model / high"); err == nil {
 			t.Fatal("invalid patch accepted")
 		}
 		current, text, _, _, _ := s.Read(p.ID, 1, 0)
@@ -45,11 +45,11 @@ func TestReadPatchAtomicityAndRevision(t *testing.T) {
 			t.Fatal("failed patch modified page")
 		}
 	}
-	u, err := s.Patch(p.ID, 1, []TextEdit{{"hello", "changed"}, {"changed", "done"}})
+	u, err := s.Patch(p.ID, 1, []TextEdit{{"hello", "changed"}, {"changed", "done"}}, "test-model / high")
 	if err != nil || u.Revision != 2 || u.CreatedAt != p.CreatedAt {
 		t.Fatalf("patch: %v", err)
 	}
-	if _, err := s.Patch(p.ID, 1, []TextEdit{{"done", "stale"}}); !errors.Is(err, ErrRevisionConflict) {
+	if _, err := s.Patch(p.ID, 1, []TextEdit{{"done", "stale"}}, "test-model / high"); !errors.Is(err, ErrRevisionConflict) {
 		t.Fatal("stale revision accepted")
 	}
 	s, err = OpenStore(dir)
@@ -75,15 +75,18 @@ func TestReadPatchAtomicityAndRevision(t *testing.T) {
 
 func TestPatchUniqueOverlapAndConcurrentWriters(t *testing.T) {
 	s, _ := OpenStore(t.TempDir())
-	p, _ := s.Create("overlap", "<html>aaaa</html>")
-	if _, err := s.Patch(p.ID, 1, []TextEdit{{"aaa", "x"}}); err == nil {
+	p, _ := s.Create("overlap", "<html>aaaa</html>", "test-model / high")
+	if _, err := s.Patch(p.ID, 1, []TextEdit{{"aaa", "x"}}, "test-model / high"); err == nil {
 		t.Fatal("overlapping duplicate match accepted")
 	}
-	p, _ = s.Create("concurrent", "<html>original</html>")
+	p, _ = s.Create("concurrent", "<html>original</html>", "test-model / high")
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
 	for _, next := range []string{"writerA", "writerB"} {
-		wg.Go(func() { _, err := s.Patch(p.ID, 1, []TextEdit{{"original", next}}); results <- err })
+		wg.Go(func() {
+			_, err := s.Patch(p.ID, 1, []TextEdit{{"original", next}}, next+" / high")
+			results <- err
+		})
 	}
 	wg.Wait()
 	close(results)
@@ -100,13 +103,17 @@ func TestPatchUniqueOverlapAndConcurrentWriters(t *testing.T) {
 	if success != 1 || conflict != 1 {
 		t.Fatal("concurrent edits did not reject stale writer")
 	}
+	winner, body, _, _, err := s.Read(p.ID, 1, 0)
+	if err != nil || winner.CreatedBy != p.CreatedBy || body != "<html>"+strings.TrimSuffix(winner.UpdatedBy, " / high")+"</html>" {
+		t.Fatal("concurrent attribution mismatched winning content", err)
+	}
 	newTitle := "renamed"
-	u, err := s.Update(p.ID, &newTitle, nil)
+	u, err := s.Update(p.ID, &newTitle, nil, "test-model / high")
 	if err != nil || u.Revision != 3 {
 		t.Fatal("update did not increment revision")
 	}
 	expected := int64(2)
-	if _, err := s.UpdateChecked(p.ID, &newTitle, nil, &expected); !errors.Is(err, ErrRevisionConflict) {
+	if _, err := s.UpdateChecked(p.ID, &newTitle, nil, &expected, "test-model / high"); !errors.Is(err, ErrRevisionConflict) {
 		t.Fatal("checked update accepted stale revision")
 	}
 }

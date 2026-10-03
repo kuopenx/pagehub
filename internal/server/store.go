@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -29,6 +30,8 @@ type Page struct {
 	MediaType string    `json:"media_type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	CreatedBy string    `json:"created_by"`
+	UpdatedBy string    `json:"updated_by"`
 	SizeBytes int64     `json:"size_bytes"`
 	Revision  int64     `json:"revision"`
 }
@@ -132,7 +135,10 @@ func validateHTML(content string) error {
 	return nil
 }
 
-func (s *Store) Create(title, content string) (Page, error) {
+func (s *Store) Create(title, content, createdBy string) (Page, error) {
+	if err := validateBy(createdBy); err != nil {
+		return Page{}, err
+	}
 	if strings.TrimSpace(title) == "" {
 		return Page{}, errors.New("title must not be blank")
 	}
@@ -158,7 +164,7 @@ func (s *Store) Create(title, content string) (Page, error) {
 		}
 	}
 	now := time.Now().UTC()
-	p := Page{ID: id, Title: strings.TrimSpace(title), MediaType: "text/html", CreatedAt: now, UpdatedAt: now, Revision: 1}
+	p := Page{ID: id, Title: strings.TrimSpace(title), MediaType: "text/html", CreatedAt: now, UpdatedAt: now, Revision: 1, CreatedBy: strings.TrimSpace(createdBy), UpdatedBy: strings.TrimSpace(createdBy)}
 	if err := s.commit(&p, strings.NewReader(content), false); err != nil {
 		return Page{}, err
 	}
@@ -166,11 +172,14 @@ func (s *Store) Create(title, content string) (Page, error) {
 	return p, nil
 }
 
-func (s *Store) Update(id string, title, content *string) (Page, error) {
-	return s.UpdateChecked(id, title, content, nil)
+func (s *Store) Update(id string, title, content *string, updatedBy string) (Page, error) {
+	return s.UpdateChecked(id, title, content, nil, updatedBy)
 }
 
-func (s *Store) UpdateChecked(id string, title, content *string, expected *int64) (Page, error) {
+func (s *Store) UpdateChecked(id string, title, content *string, expected *int64, updatedBy string) (Page, error) {
+	if err := validateBy(updatedBy); err != nil {
+		return Page{}, err
+	}
 	if !idPattern.MatchString(id) {
 		return Page{}, errors.New("id must be a server-generated UUID")
 	}
@@ -198,6 +207,7 @@ func (s *Store) UpdateChecked(id string, title, content *string, expected *int64
 		p.Title = strings.TrimSpace(*title)
 	}
 	p.UpdatedAt = time.Now().UTC()
+	p.UpdatedBy = strings.TrimSpace(updatedBy)
 	p.Revision++
 	var reader io.Reader
 	if content != nil {
@@ -259,7 +269,10 @@ func (s *Store) Read(id string, start, end int) (Page, string, int, int, error) 
 }
 
 // All edits and the revision check run under one lock. Failed batches publish nothing.
-func (s *Store) Patch(id string, expected int64, edits []TextEdit) (Page, error) {
+func (s *Store) Patch(id string, expected int64, edits []TextEdit, updatedBy string) (Page, error) {
+	if err := validateBy(updatedBy); err != nil {
+		return Page{}, err
+	}
 	if !idPattern.MatchString(id) || expected < 1 || len(edits) == 0 {
 		return Page{}, errors.New("patch requires a valid UUID, expected_revision >= 1 and at least one edit")
 	}
@@ -295,6 +308,7 @@ func (s *Store) Patch(id string, expected int64, edits []TextEdit) (Page, error)
 	}
 	p.Revision++
 	p.UpdatedAt = time.Now().UTC()
+	p.UpdatedBy = strings.TrimSpace(updatedBy)
 	if err := s.commit(&p, strings.NewReader(content), true); err != nil {
 		return Page{}, err
 	}
@@ -447,4 +461,22 @@ func (s *Store) Open(id string) (*os.File, Page, error) {
 	}
 	f, err := os.Open(filepath.Join(s.dir, id, "index.html"))
 	return f, p, err
+}
+
+// Attribution is caller-reported, not an authenticated identity. Keep it a
+// nonblank UTF-8 label suitable for display; never infer a model server-side.
+func validateBy(by string) error {
+	if strings.TrimSpace(by) == "" || !utf8.ValidString(by) {
+		return errors.New("created_by/updated_by must be nonblank UTF-8 model and reasoning-effort text")
+	}
+	model, effort, ok := strings.Cut(strings.TrimSpace(by), " / ")
+	if !ok || strings.TrimSpace(model) == "" || strings.TrimSpace(effort) == "" {
+		return errors.New("created_by/updated_by must use model-name / reasoning-effort")
+	}
+	for _, r := range by {
+		if unicode.IsControl(r) {
+			return errors.New("created_by/updated_by must be a single-line label without control characters")
+		}
+	}
+	return nil
 }

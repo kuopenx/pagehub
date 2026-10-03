@@ -38,6 +38,7 @@ For documentation-only changes, check links, examples, and the current interface
 - Titles may repeat; the server generates UUIDs. Updates and patches preserve UUID, URL, and creation time.
 - Reads preserve exact text and line endings. Line bounds start at 1 and are inclusive; support very long lines.
 - Patches require `expected_revision`. Nonempty `old_text` must match uniquely, including overlaps. Apply edits sequentially; any failure publishes nothing and changes neither metadata nor revision.
+- MCP create requires `created_by`; update/patch require `updated_by`, as caller-reported `model-name / reasoning-effort`. Creation sets both; preserve the creator on later writes. Failed writes change neither attribution nor revision. Legacy missing fields stay unknown; never infer a model.
 - New pages and legacy metadata start at revision 1. Successful updates/patches increment once. Update revision checking is optional; do not keep historical copies.
 - Stage complete content and metadata before publishing. Preserve interrupted-write recovery and concurrency consistency. Remain compatible with existing `page.json`; never delete or migrate user pages merely to reorganize code.
 - Pages and dashboard allow LAN access. MCP requires loopback, valid Host/Origin, and a token. Generate the token once and reuse it; never hard-code or print it.

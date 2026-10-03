@@ -1,5 +1,5 @@
 package buildinfo
 
-var Version = "0.4.1"
+var Version = "0.5.0"
 var Commit = "dev"
 var Date = "unknown"

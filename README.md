@@ -6,7 +6,7 @@
 
 One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.4.1**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.4.1.md).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.5.0**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.5.0.md).
 
 ## Installation
 
@@ -113,14 +113,16 @@ HTTP and MCP share one port. The management endpoint is `http://127.0.0.1:8765/_
 
 | Tool | Arguments | Behavior |
 | --- | --- | --- |
-| `create_page` | `title, media_type, html` | Accept complete HTML, require `text/html`, and generate a UUID |
+| `create_page` | `title, media_type, html, created_by` | Accept complete HTML, require `text/html`, and generate a UUID |
 | `list_pages` | `query?, offset?, limit?` | Search titles/UUIDs, newest creation first; default limit 100, 0 means all |
 | `read_page` | `id, start_line?, end_line?` | Return exact source and revision, with optional 1-based inclusive line bounds |
-| `patch_page` | `id, expected_revision, edits` | Apply uniquely matching exact-text replacements; save only if the entire batch succeeds |
-| `update_page` | `id, title?, media_type?, html?, expected_revision?` | Rename or replace content, with optional revision checking |
+| `patch_page` | `id, expected_revision, edits, updated_by` | Apply uniquely matching exact-text replacements; save only if the entire batch succeeds |
+| `update_page` | `id, updated_by, title?, media_type?, html?, expected_revision?` | Rename or replace content, with optional revision checking |
 | `delete_page` | `id` | Delete managed files and the in-memory index entry; the URL then returns 404 |
 
 See [MCP examples](docs/mcp.md) and the self-contained [pelican riding a bicycle](examples/pelican-bicycle.html). Revisions protect concurrent edits; historical copies are not retained.
+
+Each page records `created_by` and `updated_by`, shown in MCP responses and the Dashboard. `create_page` requires `created_by` and initializes both fields; `update_page` and `patch_page` require `updated_by` and preserve the creator. Agents must fill their current model name and reasoning effort as `model-name / high`; use `unknown` only for a component they cannot determine, without guessing. Missing, blank, malformed, or multiline attribution is rejected. These labels are caller-reported, not verified identities. Failed writes leave attribution unchanged. Legacy pages without attribution return empty strings and show “未记录” (not recorded); their original creator is never inferred. Existing clients must add the required write arguments.
 
 ## Content and access boundaries
 

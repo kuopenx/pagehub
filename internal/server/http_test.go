@@ -88,22 +88,49 @@ func TestMCPAndHTTPIntegration(t *testing.T) {
 		b, _ := io.ReadAll(r.Body)
 		return r.StatusCode, string(b), r.Header.Get("ETag")
 	}
-	r := call("create_page", map[string]any{"title": "鹈鹕 <script>alert(1)</script>", "media_type": "text/html", "html": testHTML})
+	r := call("create_page", map[string]any{"created_by": "test-model / high", "title": "鹈鹕 <script>alert(1)</script>", "media_type": "text/html", "html": testHTML})
 	p := decodePage(r).Page
+	if p.CreatedBy != "test-model / high" || p.UpdatedBy != p.CreatedBy {
+		t.Fatal("create attribution missing")
+	}
+	for _, tool := range []string{"create_page", "update_page", "patch_page"} {
+		for _, value := range []any{nil, "", "   ", "model-only", "model / ", "model / high\n", 42} {
+			args := map[string]any{}
+			key := "updated_by"
+			switch tool {
+			case "create_page":
+				args = map[string]any{"title": "rejected", "media_type": "text/html", "html": testHTML}
+				key = "created_by"
+			case "update_page":
+				args = map[string]any{"id": p.ID, "title": "rejected"}
+			case "patch_page":
+				args = map[string]any{"id": p.ID, "expected_revision": 1, "edits": []TextEdit{{"hello", "rejected"}}}
+			}
+			if value != nil {
+				args[key] = value
+			}
+			if !call(tool, args).IsError {
+				t.Fatalf("%s accepted missing/invalid attribution %v", tool, value)
+			}
+		}
+	}
+	if !call("update_page", map[string]any{"id": p.ID, "title": "rejected", "updated_by": "new-model / low", "created_by": "forged / high"}).IsError {
+		t.Fatal("creator override accepted")
+	}
 	read := call("read_page", map[string]any{"id": p.ID})
 	bRead, _ := json.Marshal(read.StructuredContent)
 	var source ReadOutput
-	if err := json.Unmarshal(bRead, &source); err != nil || read.IsError || source.Content != testHTML || source.Page.Revision != 1 {
+	if err := json.Unmarshal(bRead, &source); err != nil || read.IsError || source.Content != testHTML || source.Page.Revision != 1 || source.Page.CreatedBy != p.CreatedBy || source.Page.UpdatedBy != p.UpdatedBy {
 		t.Fatal("read_page returned incorrect source or revision")
 	}
-	if !call("patch_page", map[string]any{"id": p.ID, "edits": []TextEdit{{"hello", "patch"}}}).IsError {
+	if !call("patch_page", map[string]any{"updated_by": "test-model / high", "id": p.ID, "edits": []TextEdit{{"hello", "patch"}}}).IsError {
 		t.Fatal("patch without expected_revision accepted")
 	}
-	patch := call("patch_page", map[string]any{"id": p.ID, "expected_revision": 1, "edits": []TextEdit{{"hello", "patch"}, {"patch", "hello"}}})
+	patch := call("patch_page", map[string]any{"updated_by": "test-model / high", "id": p.ID, "expected_revision": 1, "edits": []TextEdit{{"hello", "patch"}, {"patch", "hello"}}})
 	if patch.IsError {
 		t.Fatalf("patch failed: %v", patch.Content)
 	}
-	if !call("patch_page", map[string]any{"id": p.ID, "expected_revision": 1, "edits": []TextEdit{{"hello", "stale"}}}).IsError {
+	if !call("patch_page", map[string]any{"updated_by": "test-model / high", "id": p.ID, "expected_revision": 1, "edits": []TextEdit{{"hello", "stale"}}}).IsError {
 		t.Fatal("MCP patch accepted stale revision")
 	}
 	if !call("read_page", map[string]any{"id": p.ID, "start_line": 0}).IsError {
@@ -117,18 +144,18 @@ func TestMCPAndHTTPIntegration(t *testing.T) {
 	if status != 200 || !strings.Contains(body, p.ID) || strings.Contains(body, "<h2>鹈鹕 <script>") {
 		t.Fatal("dashboard missing page or unescaped title")
 	}
-	if call("create_page", map[string]any{"title": "invalid", "media_type": "application/pdf", "html": testHTML}).IsError != true {
+	if call("create_page", map[string]any{"created_by": "test-model / high", "title": "invalid", "media_type": "application/pdf", "html": testHTML}).IsError != true {
 		t.Fatal("wrong media type accepted")
 	}
-	if !call("create_page", map[string]any{"title": "invalid", "media_type": "text/html", "html": testHTML, "path": "/tmp/file"}).IsError {
+	if !call("create_page", map[string]any{"created_by": "test-model / high", "title": "invalid", "media_type": "text/html", "html": testHTML, "path": "/tmp/file"}).IsError {
 		t.Fatal("extra field accepted")
 	}
-	if !call("update_page", map[string]any{"id": p.ID, "html": testHTML}).IsError {
+	if !call("update_page", map[string]any{"updated_by": "test-model / high", "id": p.ID, "html": testHTML}).IsError {
 		t.Fatal("replacement without media type accepted")
 	}
 	updated := strings.ReplaceAll(testHTML, "hello", "changed")
-	u := decodePage(call("update_page", map[string]any{"id": p.ID, "title": "重命名", "media_type": "text/html", "html": updated})).Page
-	if u.CreatedAt != p.CreatedAt || u.Path != p.Path {
+	u := decodePage(call("update_page", map[string]any{"updated_by": "next-model / low", "id": p.ID, "title": "重命名", "media_type": "text/html", "html": updated})).Page
+	if u.CreatedAt != p.CreatedAt || u.Path != p.Path || u.CreatedBy != p.CreatedBy || u.UpdatedBy != "next-model / low" {
 		t.Fatal("update changed identity")
 	}
 	_, body, newETag := get(p.Path)
@@ -140,6 +167,10 @@ func TestMCPAndHTTPIntegration(t *testing.T) {
 		t.Fatal("search failed")
 	}
 	b, _ := json.Marshal(list.StructuredContent)
+	var listed ListOutput
+	if err := json.Unmarshal(b, &listed); err != nil || len(listed.Pages) != 1 || listed.Pages[0].CreatedBy != p.CreatedBy || listed.Pages[0].UpdatedBy != u.UpdatedBy {
+		t.Fatal("list attribution missing", err)
+	}
 	if !strings.Contains(string(b), p.ID) {
 		t.Fatal("search missing page")
 	}
@@ -155,7 +186,7 @@ func TestMCPAndHTTPIntegration(t *testing.T) {
 	}
 	// SDK has a default 4 MiB request limit. Verify we honor the user's no-size-limit policy.
 	large := "<html><body>" + strings.Repeat("x", 5<<20) + "</body></html>"
-	largePage := decodePage(call("create_page", map[string]any{"title": "large", "media_type": "text/html", "html": large})).Page
+	largePage := decodePage(call("create_page", map[string]any{"created_by": "test-model / high", "title": "large", "media_type": "text/html", "html": large})).Page
 	if largePage.SizeBytes != int64(len(large)) {
 		t.Fatal("large HTML truncated")
 	}
@@ -211,12 +242,12 @@ func TestDashboardRendering(t *testing.T) {
 	if body := get("/"); !strings.Contains(body, `data-count="0"`) || !strings.Contains(body, "发布第一个页面") || strings.Contains(body, `id="grid"`) {
 		t.Fatal("empty dashboard missing onboarding")
 	}
-	p, err := s.Create(`"><img src=x onerror=alert(1)> 报表`, "<html><body>x</body></html>")
+	p, err := s.Create(`"><img src=x onerror=alert(1)> 报表`, "<html><body>x</body></html>", `<script>alert(1)</script> / high`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := get("/")
-	for _, want := range []string{`data-count="1"`, `data-id="` + p.ID + `"`, fmt.Sprintf(`style="--h:%d"`, pageHue(p.ID)), `id="grid"`, `第 1 版`} {
+	for _, want := range []string{`data-count="1"`, `data-id="` + p.ID + `"`, fmt.Sprintf(`style="--h:%d"`, pageHue(p.ID)), `id="grid"`, `第 1 版`, `Created by`, `Updated by`, `&lt;script&gt;alert(1)&lt;/script&gt; / high`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard missing %q", want)
 		}
@@ -224,7 +255,7 @@ func TestDashboardRendering(t *testing.T) {
 	if strings.Contains(body, `target="_blank"`) {
 		t.Fatal("dashboard cards must open pages in the same tab")
 	}
-	if strings.Contains(body, "<img src=x") || strings.Contains(body, `data-title=""`) {
+	if strings.Contains(body, "<script>alert(1)</script>") || strings.Contains(body, "<img src=x") || strings.Contains(body, `data-title=""`) {
 		t.Fatal("dashboard title not escaped")
 	}
 	if body := get("/?q=nomatch"); !strings.Contains(body, `id="grid"`) || strings.Contains(body, `id="noresult" hidden`) || strings.Contains(body, p.ID) {

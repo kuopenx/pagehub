@@ -18,16 +18,16 @@ func TestStoreLifecycleAndRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.Create("同名", testHTML)
+	p, err := s.Create("同名", testHTML, "test-model / high")
 	if err != nil {
 		t.Fatal(err)
 	}
-	other, err := s.Create("同名", testHTML)
+	other, err := s.Create("同名", testHTML, "test-model / high")
 	if err != nil || other.ID == p.ID {
 		t.Fatalf("duplicate title must create unique IDs: %v", err)
 	}
 	newHTML, title := strings.ReplaceAll(testHTML, "hello", "updated"), "修改后的标题"
-	u, err := s.Update(p.ID, &title, &newHTML)
+	u, err := s.Update(p.ID, &title, &newHTML, "test-model / high")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestStoreConcurrentReadUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.Create("concurrent", testHTML)
+	p, err := s.Create("concurrent", testHTML, "test-model / high")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestStoreConcurrentReadUpdate(t *testing.T) {
 	wg.Go(func() {
 		for i := 0; i < 10; i++ {
 			html := strings.ReplaceAll(testHTML, "hello", strings.Repeat("updated", i+1))
-			if _, err := s.Update(p.ID, nil, &html); err != nil {
+			if _, err := s.Update(p.ID, nil, &html, "test-model / high"); err != nil {
 				t.Error(err)
 			}
 		}
@@ -123,15 +123,15 @@ func TestValidationAndNoPageCountLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, html := range []string{"", "/tmp/page.html", "https://example.com", "<div>fragment</div>"} {
-		if _, err := s.Create("bad", html); err == nil {
+		if _, err := s.Create("bad", html, "test-model / high"); err == nil {
 			t.Errorf("accepted unsupported content %q", html)
 		}
 	}
-	if _, err := s.Create(" ", testHTML); err == nil {
+	if _, err := s.Create(" ", testHTML, "test-model / high"); err == nil {
 		t.Fatal("blank title accepted")
 	}
 	for i := 0; i < 12; i++ {
-		if _, err := s.Create("same name", testHTML); err != nil {
+		if _, err := s.Create("same name", testHTML, "test-model / high"); err != nil {
 			t.Fatal(err)
 		}
 	}

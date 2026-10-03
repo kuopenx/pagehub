@@ -197,8 +197,12 @@ func main() {
 		existing[id] = sha256.Sum256([]byte(r["content"].(string)))
 	}
 	html := "<!doctype html>\n<html lang=\"zh-CN\">\n<meta charset=\"UTF-8\">\n<title>Pagehub acceptance</title>\n<svg viewBox=\"0 0 400 200\"><circle cx=\"70\" cy=\"120\" r=\"30\" fill=\"#25756b\"/><text x=\"120\" y=\"130\">MCP live test</text></svg>\n</html>\n"
-	p := call("create_page", map[string]any{"title": "Pagehub 临时验收", "media_type": "text/html", "html": html}, false)["page"].(map[string]any)
+	p := call("create_page", map[string]any{"created_by": "test-model / high", "title": "Pagehub 临时验收", "media_type": "text/html", "html": html}, false)["page"].(map[string]any)
+	ensure(p["created_by"] == "test-model / high" && p["updated_by"] == p["created_by"], "creation attribution")
 	id := p["id"].(string)
+	call("create_page", map[string]any{"title": "rejected", "media_type": "text/html", "html": html}, true)
+	call("update_page", map[string]any{"id": id, "title": "rejected"}, true)
+	call("patch_page", map[string]any{"id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "MCP live test", "new_text": "rejected"}}}, true)
 	deleted := false
 	defer func() {
 		if !deleted {
@@ -209,13 +213,15 @@ func main() {
 	ensure(read["content"] == html, "full read")
 	part := call("read_page", map[string]any{"id": id, "start_line": 2, "end_line": 3}, false)
 	ensure(part["content"] == "<html lang=\"zh-CN\">\n<meta charset=\"UTF-8\">\n", "line read")
-	call("patch_page", map[string]any{"id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "MCP live test", "new_text": "changed"}, {"old_text": "__missing_anchor__", "new_text": "bad"}}}, true)
+	call("patch_page", map[string]any{"updated_by": "test-model / high", "id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "MCP live test", "new_text": "changed"}, {"old_text": "__missing_anchor__", "new_text": "bad"}}}, true)
 	ensure(call("read_page", map[string]any{"id": id}, false)["content"] == html, "atomic rejection")
-	patch := call("patch_page", map[string]any{"id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "MCP live test", "new_text": "Go CLI + MCP verified"}}}, false)
+	patch := call("patch_page", map[string]any{"updated_by": "patch-model / medium", "id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "MCP live test", "new_text": "Go CLI + MCP verified"}}}, false)
+	ensure(patch["page"].(map[string]any)["updated_by"] == "patch-model / medium", "patch attribution")
 	ensure(patch["page"].(map[string]any)["revision"].(float64) == 2, "revision increment")
-	call("patch_page", map[string]any{"id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "Go CLI + MCP verified", "new_text": "stale"}}}, true)
-	call("update_page", map[string]any{"id": id, "title": "Pagehub verified", "expected_revision": 2}, false)
+	call("patch_page", map[string]any{"updated_by": "test-model / high", "id": id, "expected_revision": 1, "edits": []map[string]string{{"old_text": "Go CLI + MCP verified", "new_text": "stale"}}}, true)
+	call("update_page", map[string]any{"updated_by": "update-model / low", "id": id, "title": "Pagehub verified", "expected_revision": 2}, false)
 	final := call("read_page", map[string]any{"id": id}, false)
+	ensure(final["page"].(map[string]any)["created_by"] == p["created_by"] && final["page"].(map[string]any)["updated_by"] == "update-model / low", "creator preserved and updater recorded")
 	ensure(final["page"].(map[string]any)["revision"].(float64) == 3, "update revision")
 	ensure(final["page"].(map[string]any)["created_at"] == p["created_at"], "creation time preserved")
 	r, err := http.Get(base + p["path"].(string))
@@ -236,7 +242,7 @@ func main() {
 		r := call("read_page", map[string]any{"id": id}, false)
 		ensure(sha256.Sum256([]byte(r["content"].(string))) == hash, "existing page preserved")
 	}
-	checks = append(checks, "all six tools over real MCP HTTP", "source and exact line ranges", "failed batch saves nothing", "stale revision rejected", "URL and creation time preserved", "HTTP serves patched source", "temporary page deleted; existing pages unchanged")
+	checks = append(checks, "all six tools over real MCP HTTP", "required model attribution; immutable creator and latest updater", "source and exact line ranges", "failed batch saves nothing", "stale revision rejected", "URL and creation time preserved", "HTTP serves patched source", "temporary page deleted; existing pages unchanged")
 	if temp != "" && (runtime.GOOS == "darwin" || runtime.GOOS == "linux") {
 		run("uninstall", "--data-dir", temp, "--service-name", func() string {
 			var s struct {

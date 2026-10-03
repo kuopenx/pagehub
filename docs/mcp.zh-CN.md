@@ -9,10 +9,10 @@
 `create_page` 参数：
 
 ```json
-{"title":"Hello","media_type":"text/html","html":"<!doctype html><html><meta charset=\"UTF-8\"><h1>Hello</h1></html>"}
+{"created_by":"model-name / high","title":"Hello","media_type":"text/html","html":"<!doctype html><html><meta charset=\"UTF-8\"><h1>Hello</h1></html>"}
 ```
 
-返回的 `page` 包含 ID、标题、时间戳、字节数、修订号、路径、本机 URL 和 LAN URL。手机使用 Wi-Fi LAN URL。Create/update/patch 也返回 Dashboard URL。
+返回的 `page` 包含 ID、标题、时间戳、created_by/updated_by、字节数、修订号、路径、本机 URL 和 LAN URL。手机使用 Wi-Fi LAN URL。Create/update/patch 也返回 Dashboard URL。
 
 ## 读取与补丁
 
@@ -27,7 +27,7 @@
 将返回的修订号用于 `patch_page`：
 
 ```json
-{"id":"<returned UUID>","expected_revision":1,"edits":[{"old_text":"<h1>Hello</h1>","new_text":"<h1>Updated</h1>"}]}
+{"id":"<returned UUID>","updated_by":"model-name / medium","expected_revision":1,"edits":[{"old_text":"<h1>Hello</h1>","new_text":"<h1>Updated</h1>"}]}
 ```
 
 每个非空 `old_text` 必须恰好匹配一次，重叠匹配也计入。文本重复时添加上下文。编辑按顺序执行，后续编辑可以看到前面的结果。空 `new_text` 删除原文本。不支持正则或模糊匹配。
@@ -35,6 +35,20 @@
 修订号过期、任意匹配失败或最终 HTML 无效时，不保存任何变化。冲突后重新读取并评估补丁。成功时修订号只增加一次，并保留 ID、URL 和创建时间。
 
 新页面及缺少修订号的旧元数据从 1 开始。`update_page` 也增加修订号；它的 `expected_revision` 可选，省略表示无条件更新。修订号不保留历史副本。
+
+## 必填模型归属
+
+每次创建必须提供 `created_by`；每次更新或 patch 必须提供 `updated_by`。按单行 `model-name / high` 格式填写当前模型名称和推理强度。示例中的模型是占位符，不要直接照抄。无法确定的部分使用 `unknown`（例如 `model-name / unknown`），不要编造。缺失、空白、格式错误、含控制字符或非字符串的值会被拒绝。归属是调用者自报的信息，公开显示在 Dashboard 上；Pagehub 无法核验实际运行的模型。
+
+创建时两项均初始化为创建者。更新或 patch 成功时仅修改 `updated_by`，与内容和修订号一起原子保存；失败则不改变任何记录。Read/list 均返回这两项。旧元数据的未知归属返回空字符串，Dashboard 显示“未记录”；后续更新仍保留未知的原创建者。
+
+仅修改标题的 `update_page` 示例：
+
+```json
+{"id":"<returned UUID>","title":"Renamed","expected_revision":2,"updated_by":"model-name / low"}
+```
+
+现有客户端须发送这些新增的必填参数；重新连接或刷新工具，以加载更新后的 schema 和说明。
 
 ## 列表与删除
 

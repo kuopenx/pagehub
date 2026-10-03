@@ -22,7 +22,7 @@ func TestDeferredBackupCannotBlockUpdateOrResurrectDeletion(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			page, err := store.Create("regression", "<html>original</html>")
+			page, err := store.Create("regression", "<html>original</html>", "test-model / high")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -38,7 +38,7 @@ func TestDeferredBackupCannotBlockUpdateOrResurrectDeletion(t *testing.T) {
 				t.Fatal(err)
 			}
 			content := "<html>updated</html>"
-			if _, err = store.Update(page.ID, nil, &content); err != nil {
+			if _, err = store.Update(page.ID, nil, &content, "test-model / high"); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = os.Stat(backup); err != nil {
@@ -46,7 +46,7 @@ func TestDeferredBackupCannotBlockUpdateOrResurrectDeletion(t *testing.T) {
 			}
 			if updateAgain {
 				content = "<html>updated again</html>"
-				updated, err := store.Update(page.ID, nil, &content)
+				updated, err := store.Update(page.ID, nil, &content, "test-model / high")
 				if err != nil || updated.Revision != 3 {
 					t.Fatal("old backup blocked update", err)
 				}
@@ -74,7 +74,7 @@ func TestRecoveredObsoleteBackupCannotResurrectDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := store.Create("regression", "<html>original</html>")
+	page, err := store.Create("regression", "<html>original</html>", "test-model / high")
 	if err != nil {
 		t.Fatal(err)
 	}
