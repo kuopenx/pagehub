@@ -6,7 +6,7 @@
 
 One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.5.0**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.5.0.md).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.5.1**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.5.1.md).
 
 ## Installation
 
@@ -122,7 +122,7 @@ HTTP and MCP share one port. The management endpoint is `http://127.0.0.1:8765/_
 
 See [MCP examples](docs/mcp.md) and the self-contained [pelican riding a bicycle](examples/pelican-bicycle.html). Revisions protect concurrent edits; historical copies are not retained.
 
-Each page records `created_by` and `updated_by`, shown in MCP responses and the Dashboard. `create_page` requires `created_by` and initializes both fields; `update_page` and `patch_page` require `updated_by` and preserve the creator. Agents must fill their current model name and reasoning effort as `model-name / high`; use `unknown` only for a component they cannot determine, without guessing. Missing, blank, malformed, or multiline attribution is rejected. These labels are caller-reported, not verified identities. Failed writes leave attribution unchanged. Legacy pages without attribution return empty strings and show “未记录” (not recorded); their original creator is never inferred. Existing clients must add the required write arguments.
+Each page records `created_by` and `updated_by`, shown in MCP responses and the Dashboard. `create_page` requires `created_by` and initializes both fields; `update_page` and `patch_page` require `updated_by` and preserve the creator. Agents must fill their current model name and reasoning effort as `model-name / high`; use `unknown` only for a component they cannot determine, without guessing. Missing, blank, malformed, or multiline attribution is rejected. These labels are caller-reported, not verified identities. Failed writes leave attribution unchanged. Legacy pages without attribution return empty strings and are hidden on the Dashboard; their original creator is never inferred. Existing clients must add the required write arguments.
 
 ## Content and access boundaries
 

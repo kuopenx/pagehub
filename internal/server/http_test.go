@@ -252,11 +252,34 @@ func TestDashboardRendering(t *testing.T) {
 			t.Fatalf("dashboard missing %q", want)
 		}
 	}
+	idAt := strings.Index(body, `title="`+p.ID+`">`+p.ID+`</span>`)
+	byAt := strings.Index(body, `<p class="by">`)
+	if idAt < 0 || byAt <= idAt {
+		t.Fatal("attribution must follow the page ID")
+	}
 	if strings.Contains(body, `target="_blank"`) {
 		t.Fatal("dashboard cards must open pages in the same tab")
 	}
 	if strings.Contains(body, "<script>alert(1)</script>") || strings.Contains(body, "<img src=x") || strings.Contains(body, `data-title=""`) {
 		t.Fatal("dashboard title not escaped")
+	}
+	// Simulate legacy metadata and a later update with an unknown creator.
+	s.mu.Lock()
+	legacy := s.pages[p.ID]
+	legacy.CreatedBy, legacy.UpdatedBy = "", ""
+	s.pages[p.ID] = legacy
+	s.mu.Unlock()
+	body = get("/")
+	if strings.Contains(body, `<p class="by">`) || strings.Contains(body, "未记录") {
+		t.Fatal("unknown attribution should be hidden")
+	}
+	s.mu.Lock()
+	legacy.UpdatedBy = "updater-model / high"
+	s.pages[p.ID] = legacy
+	s.mu.Unlock()
+	body = get("/")
+	if strings.Contains(body, "Created by") || !strings.Contains(body, "Updated by") || !strings.Contains(body, "updater-model / high") {
+		t.Fatal("show only recorded attribution")
 	}
 	if body := get("/?q=nomatch"); !strings.Contains(body, `id="grid"`) || strings.Contains(body, `id="noresult" hidden`) || strings.Contains(body, p.ID) {
 		t.Fatal("filtered dashboard should render an empty grid with a visible no-result state")
