@@ -57,7 +57,7 @@ Usage: pagehub <command> [options]
 
 Commands:
   serve                         Run HTTP + MCP in the foreground
-  setup                         Install/update and start a macOS user service
+  setup                         Install/update and start a macOS/Linux user service
   service start|stop|restart|status
   connect codex|claude           Register this service in a client configuration
   disconnect codex|claude        Remove only this endpoint's registration
@@ -69,12 +69,12 @@ Commands:
 Options:
   --data-dir DIR                Default: ~/.pagehub
   --port PORT                   Override saved/default port (8765)
-  --service-name NAME           Override saved/default launchd label
+  --service-name NAME           Override saved/default service name
   --config-file FILE            connect/disconnect: override client configuration path
   --json                        Structured output; errors on stderr; nonzero on failure
   --help                        Show help
 
-Background management supports macOS. Foreground serve is portable.
+Supported platforms: macOS (launchd) and Linux (user systemd).
 setup is repeatable. Updates preserve pages, token and revisions.
 uninstall preserves pages, settings, token and client configuration;
 use disconnect first if you want to remove client registrations.
@@ -170,6 +170,10 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		}
 		return 0
 	}
+	if env.GOOS != "darwin" && env.GOOS != "linux" {
+		fmt.Fprintln(errOut, "Pagehub supports macOS and Linux only")
+		return 1
+	}
 	var err error
 	o.dir, err = filepath.Abs(o.dir)
 	if err != nil {
@@ -211,10 +215,6 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		err = env.Serve(ctx, o.dir, settings.Port)
 		r.Message = "server stopped"
 	case "setup":
-		if env.GOOS != "darwin" {
-			err = errors.New("setup currently supports macOS only; use pagehub serve")
-			break
-		}
 		source := env.Executable
 		if source == "" {
 			source, err = os.Executable()
@@ -323,7 +323,11 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 			fmt.Fprintln(out, "LAN:", u)
 		}
 		if r.Status != nil {
-			fmt.Fprintf(out, "registered=%t running=%t pid=%d label=%s\n", r.Status.Registered, r.Status.Running, r.Status.PID, r.Status.Label)
+			fmt.Fprintf(out, "registered=%t running=%t pid=%d label=%s", r.Status.Registered, r.Status.Running, r.Status.PID, r.Status.Label)
+			if env.GOOS == "linux" {
+				fmt.Fprintf(out, " enabled=%t", r.Status.Enabled)
+			}
+			fmt.Fprintln(out)
 		}
 		for _, c := range r.Checks {
 			fmt.Fprintf(out, "%s: ok=%t %s\n", c.Name, c.OK, c.Detail)
@@ -359,9 +363,13 @@ func lanURLs(port int) []string {
 
 func diagnose(ctx context.Context, m service.Manager, home, url string) []Check {
 	checks := []Check{}
-	if m.GOOS == "darwin" {
+	if m.GOOS == "darwin" || m.GOOS == "linux" {
 		s, err := m.Status(ctx)
-		checks = append(checks, Check{"service", err == nil && s.Running, fmt.Sprintf("registered=%t running=%t", s.Registered, s.Running)})
+		detail := fmt.Sprintf("registered=%t running=%t", s.Registered, s.Running)
+		if err != nil {
+			detail = err.Error()
+		}
+		checks = append(checks, Check{"service", err == nil && s.Running, detail})
 	}
 	hc, err := localhttp.NewClient(url, "", 3*time.Second)
 	if err != nil {

@@ -6,13 +6,13 @@
 
 One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.3.5**. License: [MIT](LICENSE).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.4.0**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.4.0.md).
 
 ## Installation
 
 Pagehub is distributed **only as source**. Use Homebrew, `go install`, or build from a checkout. GitHub Releases contain version notes and automatic source archives; no precompiled binaries or installers are published.
 
-**macOS supports background installation; Linux supports foreground serving.** Python and Node.js are not required.
+**macOS and Linux support background installation and login autostart.** Python and Node.js are not required.
 
 ### Homebrew (macOS)
 
@@ -34,9 +34,19 @@ Requires Go 1.26.0 or newer:
 go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 ```
 
-Make sure `GOBIN`, or `$(go env GOPATH)/bin` when `GOBIN` is unset, is on your `PATH`. On macOS, continue with `pagehub setup` and the client commands above. On Linux, run `pagehub serve`; use a second terminal to connect a client.
+Make sure `GOBIN`, or `$(go env GOPATH)/bin` when `GOBIN` is unset, is on your `PATH`. On either platform, run `pagehub setup`, then `pagehub connect codex` or `pagehub connect claude`. Use `pagehub serve` for foreground operation.
 
 For building from a checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Linux background service
+
+`pagehub setup` detects Linux and installs a user systemd unit at `~/.config/systemd/user/io.pagehub.agent.service` (or under an absolute `XDG_CONFIG_HOME`). It starts immediately and enables autostart when your systemd user session starts, normally at login. Run it as your regular user; do not use `sudo`. Linux requires systemd 240+ and a working user session/bus. Systems without user systemd can use `pagehub serve`.
+
+To start at boot before login and keep running after logout, you can explicitly enable lingering with `loginctl enable-linger "$USER"` (authorization may be required). Pagehub does not change lingering settings. See [systemd loginctl](https://www.freedesktop.org/software/systemd/man/latest/loginctl.html).
+
+`pagehub service start/stop/restart/status` uses `systemctl --user` on Linux and launchd on macOS. Stopping a Linux service leaves login autostart enabled; uninstall disables it and removes the owned unit while preserving data. Setup rejects foreign units and drop-ins, and failed upgrades restore the previous executable, settings, unit, running state, and autostart state. Linux JSON service status includes `enabled: true` when login autostart is enabled.
+
+Only macOS and Linux are supported.
 
 ## Usage
 
@@ -47,7 +57,7 @@ Ask your MCP client to create a page, then open the returned URL or find it on t
 | Command | Behavior |
 | --- | --- |
 | `pagehub serve` | Run HTTP and MCP in the foreground |
-| `pagehub setup` | Install or upgrade the macOS background service, start it, and wait for health |
+| `pagehub setup` | Install or upgrade the macOS/Linux background service, start it, and wait for health |
 | `pagehub service start/stop/restart/status` | Manage the user background service |
 | `pagehub connect codex/claude` | Register Pagehub while preserving other client configuration |
 | `pagehub disconnect codex/claude` | Remove the Pagehub registration pointing to this service |
@@ -58,7 +68,7 @@ Ask your MCP client to create a page, then open the returned URL or find it on t
 
 Every command supports `--help`. Use `--json` for machine-readable output. Exit codes are 0 for success, 1 for operation failure, and 2 for argument parsing or validation failure. Errors go to stderr. `--data-dir`, `--port`, and `--service-name` override saved settings; connection commands also accept `--config-file`.
 
-Changing `--service-name` during `setup` migrates the service recorded in that data directory, removes its old LaunchAgent after the new process passes health checks, and restores the previous installation if startup fails. Health checks verify the Pagehub process against launchd's PID. `version` works even when saved settings are damaged.
+Changing `--service-name` during `setup` migrates the service recorded in that data directory, removes its old service file after the new process passes health checks, and restores the previous installation if startup fails. Health checks verify the Pagehub process against the PID reported by launchd or systemd. `version` works even when saved settings are damaged.
 
 The default listener is IPv4 `0.0.0.0:8765`. Separate instances need distinct ports, data directories, and service names. For a foreground development instance:
 
@@ -82,7 +92,7 @@ pagehub setup
 pagehub doctor
 ```
 
-For Go installations, rerun `go install github.com/kuopenx/pagehub/cmd/pagehub@latest`, then run `pagehub setup` on macOS and `pagehub doctor`. Restart a foreground Linux instance to use the new executable.
+For Go installations, rerun `go install github.com/kuopenx/pagehub/cmd/pagehub@latest`, then run `pagehub setup` and `pagehub doctor` on macOS or Linux. Restart a foreground instance to use the new executable.
 
 `setup` copies the current executable into `~/.pagehub/bin/pagehub`; it does not overwrite package-manager files. If startup fails, it restores the previous executable, settings, and service registration. Existing pages, URLs, token, and revisions remain intact. Legacy launchd registrations migrate to `io.pagehub.agent`.
 
@@ -129,7 +139,7 @@ Start with `pagehub doctor --json`:
 | Problem | Check |
 | --- | --- |
 | Service is not running | `pagehub service status`, `pagehub service start`, and `pagehub.log` |
-| Local access works but phone access fails | Same Wi-Fi, correct IPv4, and Pagehub's incoming firewall permission in macOS Settings |
+| Local access works but phone access fails | Same Wi-Fi, correct IPv4, and incoming firewall permission (macOS Settings or Linux firewall) |
 | MCP returns 401 | Rerun `pagehub connect <client>` with the same data directory |
 | MCP returns 403 | Use the local management URL and check Host/Origin; LAN URLs are for pages |
 | New tools are missing | Reopen the client session |

@@ -6,11 +6,11 @@ These instructions apply throughout the repository. User documentation is in [RE
 
 ## Project and code
 
-Pagehub hosts single-file HTML artifacts. One Go executable provides the CLI, LAN pages, local MCP, and macOS background management. Installation and use do not depend on Python or Node.
+Pagehub hosts single-file HTML artifacts. One Go executable provides the CLI, LAN pages, local MCP, and macOS/Linux background management. Installation and use do not depend on Python or Node.
 
 - `cmd/pagehub`: entry point; `internal/cli`: commands, exit codes, JSON output, and diagnostics.
 - `internal/server`: HTTP, MCP, embedded dashboard, storage, revisions, patches, and logging.
-- `internal/service`: user launchd installation, lifecycle, legacy migration, and upgrade rollback.
+- `internal/service`: user launchd/systemd installation, lifecycle, legacy migration, and upgrade rollback.
 - `internal/clients`: Codex TOML and Claude JSON; preserve unrelated configuration and reject foreign endpoints.
 - `internal/localhttp`: pin management requests to a numeric loopback authority; disable redirects and environment proxies.
 - `internal/config`: settings schema, validation, and private atomic writes; `internal/buildinfo`: version and build information.
@@ -28,7 +28,7 @@ go vet ./...
 go run ./cmd/pagehub-verify --binary ./pagehub
 ```
 
-Run `gofmt` after Go changes. HTTP tests need temporary listening ports; report environmental restrictions rather than claiming skipped tests passed. Acceptance uses temporary data, dynamic UUIDs, and an independent port. On macOS it uses a unique LaunchAgent and uninstalls it afterward. `--endpoint` may target only loopback: delete acceptance pages and leave existing pages unchanged.
+Run `gofmt` after Go changes. HTTP tests need temporary listening ports; report environmental restrictions rather than claiming skipped tests passed. Acceptance uses temporary data, dynamic UUIDs, and an independent port. On macOS/Linux it uses a unique user LaunchAgent/systemd unit and uninstalls it afterward. Linux requires an active systemd user manager. `--endpoint` may target only loopback: delete acceptance pages and leave existing pages unchanged.
 
 For documentation-only changes, check links, examples, and the current interface; there is no need to restart the service or rerun every behavior test. For workflow changes, validate YAML and shell syntax. Before a source release, require successful CI and real acceptance; verify zero uploaded binary assets and a working source installation.
 
@@ -42,7 +42,7 @@ For documentation-only changes, check links, examples, and the current interface
 - Stage complete content and metadata before publishing. Preserve interrupted-write recovery and concurrency consistency. Remain compatible with existing `page.json`; never delete or migrate user pages merely to reorganize code.
 - Pages and dashboard allow LAN access. MCP requires loopback, valid Host/Origin, and a token. Generate the token once and reuse it; never hard-code or print it.
 - Preserve escaped dashboard titles, refresh/cache consistency, and bounded log rotation. Logs must not contain HTML, Authorization headers, or tokens.
-- Keep the macOS user LaunchAgent. Do not replace it with a system daemon, root service, or disabled firewall. Failed upgrades restore the previous executable and configuration; uninstall keeps data by default.
+- Keep the macOS user LaunchAgent and Linux user systemd unit. Do not replace it with a system daemon, root service, or disabled firewall. Failed upgrades restore the previous executable and configuration; uninstall keeps data by default.
 - Verify CLI success, failure, and repeated execution. Validate client configuration, detect concurrent changes, and preserve unrelated services.
 
 ## Changes and commits

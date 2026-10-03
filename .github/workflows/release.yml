@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag (for example v0.3.2)
+        description: Existing version tag (for example v0.4.0)
         required: true
         type: string
 permissions:
@@ -25,6 +25,11 @@ jobs:
           go-version-file: go.mod
       - run: go test -race ./... && go vet ./...
       - run: go build -trimpath -o pagehub ./cmd/pagehub
+      - name: Start Linux user systemd for acceptance
+        run: |
+          sudo systemctl start "user@$(id -u).service"
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus" >> "$GITHUB_ENV"
       - name: Real CLI and MCP acceptance
         run: go run ./cmd/pagehub-verify --binary ./pagehub
       - name: Create source-only draft
@@ -39,24 +44,7 @@ jobs:
             echo "Release already exists: $RELEASE_TAG"
             exit 0
           fi
-          cat > "$RUNNER_TEMP/pagehub-release-notes.md" <<'NOTES'
-          Pagehub is distributed as source. This release has no precompiled binaries or installers.
-
-          Install on macOS with Homebrew (builds from source):
-          ```sh
-          brew install kuopenx/tap/pagehub
-          ```
-
-          Or use Go 1.26.0+ on macOS or Linux:
-          ```sh
-          go install github.com/kuopenx/pagehub/cmd/pagehub@latest
-          ```
-
-          On macOS, run `pagehub setup` after installation or upgrade to update the background service.
-          On Linux, run `pagehub serve` in the foreground.
-
-          Documentation: [English](https://github.com/kuopenx/pagehub#readme) · [简体中文](https://github.com/kuopenx/pagehub/blob/main/README.zh-CN.md).
-          GitHub provides the source ZIP and tar.gz archives automatically.
-          NOTES
+          notes_file="docs/releases/$RELEASE_TAG.md"
+          test -f "$notes_file"
           gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --draft --title "Pagehub $RELEASE_TAG" --notes-file "$RUNNER_TEMP/pagehub-release-notes.md"
+            --draft --title "Pagehub $RELEASE_TAG" --notes-file "$notes_file"

@@ -54,7 +54,11 @@ func main() {
 		return b
 	}
 	if *endpoint == "" {
-		temp, err = os.MkdirTemp("", "pagehub-acceptance-")
+		prefix := "pagehub-acceptance-"
+		if runtime.GOOS == "linux" {
+			prefix = "pagehub-acceptance space % $HOME \"-"
+		}
+		temp, err = os.MkdirTemp("", prefix)
 		must(err)
 		defer os.RemoveAll(temp)
 		listener, e := net.Listen("tcp4", "127.0.0.1:0")
@@ -66,7 +70,7 @@ func main() {
 		command := func(args ...string) []byte { return run(append(args, common...)...) }
 		ensure(strings.Contains(string(run("--help")), "Commands:"), "help")
 		run("version", "--json")
-		if runtime.GOOS == "darwin" {
+		if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
 			command("setup")
 			cleanup = func() {
 				cmd := exec.Command(bin, append([]string{"uninstall"}, common...)...)
@@ -77,12 +81,21 @@ func main() {
 			}
 			defer cleanup()
 			command("setup")
-			command("service", "status")
+			status := command("service", "status")
+			if runtime.GOOS == "linux" {
+				var report struct {
+					Status struct {
+						Enabled bool `json:"enabled"`
+					} `json:"status"`
+				}
+				must(json.Unmarshal(status, &report))
+				ensure(report.Status.Enabled, "Linux login autostart not enabled")
+			}
 			command("service", "stop")
 			command("service", "stop")
 			command("service", "start")
 			command("service", "restart")
-			checks = append(checks, "real macOS setup twice; service status/stop twice/start/restart")
+			checks = append(checks, "real "+runtime.GOOS+" setup twice; service status/stop twice/start/restart")
 			oldLabel := label
 			probe, e := net.Listen("tcp4", "127.0.0.1:0")
 			must(e)
@@ -91,12 +104,23 @@ func main() {
 			label += ".renamed"
 			common = []string{"--data-dir", temp, "--port", fmt.Sprint(port), "--service-name", label, "--json"}
 			command("setup")
-			_, e = exec.CommandContext(ctx, "launchctl", "print", fmt.Sprintf("gui/%d/%s", os.Getuid(), oldLabel)).CombinedOutput()
-			ensure(e != nil, "old LaunchAgent remained registered after rename")
 			home, e := os.UserHomeDir()
 			must(e)
-			_, e = os.Stat(filepath.Join(home, "Library", "LaunchAgents", oldLabel+".plist"))
-			ensure(os.IsNotExist(e), "old LaunchAgent plist remained after rename")
+			if runtime.GOOS == "darwin" {
+				_, e = exec.CommandContext(ctx, "launchctl", "print", fmt.Sprintf("gui/%d/%s", os.Getuid(), oldLabel)).CombinedOutput()
+				ensure(e != nil, "old LaunchAgent remained registered after rename")
+				_, e = os.Stat(filepath.Join(home, "Library", "LaunchAgents", oldLabel+".plist"))
+			} else {
+				out, err := exec.CommandContext(ctx, "systemctl", "--user", "show", oldLabel+".service", "--property=LoadState", "--value").CombinedOutput()
+				must(err)
+				ensure(strings.TrimSpace(string(out)) == "not-found", "old systemd unit remained after rename")
+				root := os.Getenv("XDG_CONFIG_HOME")
+				if !filepath.IsAbs(root) {
+					root = filepath.Join(home, ".config")
+				}
+				_, e = os.Stat(filepath.Join(root, "systemd", "user", oldLabel+".service"))
+			}
+			ensure(os.IsNotExist(e), "old service file remained after rename")
 			command("setup")
 			checks = append(checks, "real service label/port migration; old registration removed; repeated setup")
 		} else {
@@ -213,7 +237,7 @@ func main() {
 		ensure(sha256.Sum256([]byte(r["content"].(string))) == hash, "existing page preserved")
 	}
 	checks = append(checks, "all six tools over real MCP HTTP", "source and exact line ranges", "failed batch saves nothing", "stale revision rejected", "URL and creation time preserved", "HTTP serves patched source", "temporary page deleted; existing pages unchanged")
-	if temp != "" && runtime.GOOS == "darwin" {
+	if temp != "" && (runtime.GOOS == "darwin" || runtime.GOOS == "linux") {
 		run("uninstall", "--data-dir", temp, "--service-name", func() string {
 			var s struct {
 				ServiceName string `json:"service_name"`

@@ -80,7 +80,7 @@ func TestServiceInstallLifecycleAndRollback(t *testing.T) {
 	}
 }
 func TestForeignServiceAndUnsupportedPlatform(t *testing.T) {
-	m := Manager{Home: t.TempDir(), DataDir: t.TempDir(), GOOS: "linux", Settings: config.Default()}
+	m := Manager{Home: t.TempDir(), DataDir: t.TempDir(), GOOS: "freebsd", Settings: config.Default()}
 	if _, err := m.Status(context.Background()); err == nil {
 		t.Fatal("unsupported platform accepted")
 	}

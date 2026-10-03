@@ -6,11 +6,11 @@
 
 ## 项目与代码
 
-Pagehub 是单文件 HTML artifact 服务，一个 Go 二进制提供 CLI、LAN 页面、本机 MCP 与 macOS 后台管理。用户安装使用不依赖 Python 或 Node。
+Pagehub 是单文件 HTML artifact 服务，一个 Go 二进制提供 CLI、LAN 页面、本机 MCP 与 macOS/Linux 后台管理。用户安装使用不依赖 Python 或 Node。
 
 - `cmd/pagehub`：CLI 入口；`internal/cli`：命令、退出码、JSON 输出与诊断。
 - `internal/server`：HTTP、MCP、嵌入 Dashboard、页面存储、修订号、补丁及日志。
-- `internal/service`：用户级 launchd 安装、启停、旧标签迁移与升级回滚。
+- `internal/service`：用户级 launchd/systemd 安装、启停、旧标签迁移与升级回滚。
 - `internal/clients`：Codex TOML、Claude JSON 配置；精确保留无关配置、拒绝覆盖其他 endpoint。
 - `internal/localhttp`：将管理请求固定在数字 loopback 地址和端口，禁用重定向及环境代理。
 - `internal/config`：设置 schema、校验、私有原子写入；`internal/buildinfo`：程序版本与构建信息。
@@ -28,7 +28,7 @@ go vet ./...
 go run ./cmd/pagehub-verify --binary ./pagehub
 ```
 
-Go 修改后运行 `gofmt`。HTTP 测试需要临时端口监听许可；环境不允许时明确报告，不能跳过后声称通过。真实验收默认使用临时数据、动态 UUID 和独立端口；macOS 使用唯一 LaunchAgent，验证后卸载。`--endpoint` 模式只能指向 loopback，验收页必须删除，既有页面必须保持不变。
+Go 修改后运行 `gofmt`。HTTP 测试需要临时端口监听许可；环境不允许时明确报告，不能跳过后声称通过。真实验收默认使用临时数据、动态 UUID 和独立端口；macOS/Linux 使用唯一的用户级 LaunchAgent/systemd unit，验证后卸载；Linux 需要已运行的 systemd 用户管理器。`--endpoint` 模式只能指向 loopback，验收页必须删除，既有页面必须保持不变。
 
 仅文档修改核对链接、示例和当前接口，无需重启或重跑全套行为测试。工作流修改需检查 YAML 和 shell 语法。源码发布前通过 CI 与真实验收，确认没有二进制附件且源码安装可用。
 
@@ -42,7 +42,7 @@ Go 修改后运行 `gofmt`。HTTP 测试需要临时端口监听许可；环境�
 - 暂存完整文件和元数据再发布，保留中断恢复与并发一致性。修改格式要兼容既有 page.json，不能迁移或删除用户页面来整理代码。
 - 页面和 Dashboard 允许 LAN；MCP 仅 loopback、合法 Host/Origin 与令牌。令牌首次生成后复用，不写死或打印。
 - Dashboard 标题转义、刷新缓存一致性和有限日志轮转保持有效；日志不记录 HTML、认证头或令牌。
-- 后台安装保持 macOS 用户级 LaunchAgent，不改成系统 daemon、root 服务或关闭防火墙。升级失败恢复旧二进制与配置，卸载默认保留数据。
+- 后台安装保持 macOS 用户级 LaunchAgent 和 Linux 用户级 systemd unit，不改成系统 daemon、root 服务或关闭防火墙。升级失败恢复旧二进制与配置，卸载默认保留数据。
 - 所有 CLI 需有正常、失败和重复执行验证；客户端写入必须校验格式、检查并发变动并保留其他服务。
 
 ## 修改和提交

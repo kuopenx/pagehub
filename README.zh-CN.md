@@ -6,13 +6,13 @@
 
 一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
 
-适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.3.5**，采用 [MIT](LICENSE) 许可。
+适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.4.0**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.4.0.zh-CN.md)。
 
 ## 安装
 
 Pagehub **只分发源码**，支持 Homebrew、`go install` 和本地源码构建。GitHub Release 保留版本说明和自动生成的源码归档，不提供预编译二进制或安装包。
 
-**macOS 支持后台安装；Linux 支持前台运行。** 不依赖 Python 或 Node.js。
+**macOS 和 Linux 均支持后台安装与登录自启动。** 不依赖 Python 或 Node.js。
 
 ### Homebrew（macOS）
 
@@ -34,9 +34,19 @@ Formula 从版本化源码构建，Go 由 Homebrew 管理。`setup` 安装的是
 go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 ```
 
-确认 `GOBIN`，或未设置 `GOBIN` 时的 `$(go env GOPATH)/bin`，已加入 `PATH`。macOS 接着执行上面的 `pagehub setup` 和客户端连接命令；Linux 使用 `pagehub serve`，并在另一个终端连接客户端。
+确认 `GOBIN`，或未设置 `GOBIN` 时的 `$(go env GOPATH)/bin`，已加入 `PATH`。两个平台均执行 `pagehub setup`，然后用 `pagehub connect codex` 或 `pagehub connect claude` 连接客户端。需要前台运行时使用 `pagehub serve`。
 
 源码构建与验证见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)。
+
+### Linux 后台服务
+
+`pagehub setup` 检测到 Linux 后，将用户级 systemd unit 安装到 `~/.config/systemd/user/io.pagehub.agent.service`（设置绝对路径 `XDG_CONFIG_HOME` 时使用该目录）。安装后立即启动，并启用 systemd 用户会话启动时的自启动，通常是在登录后。以普通用户执行，不要使用 `sudo`。Linux 需要 systemd 240+ 和可用的用户会话/bus；没有用户级 systemd 的系统仍可使用 `pagehub serve`。
+
+如果需要在登录前随开机启动、退出登录后继续运行，可自行执行 `loginctl enable-linger "$USER"`（可能需要授权）。Pagehub 不修改 linger 设置，参见 [systemd loginctl](https://www.freedesktop.org/software/systemd/man/latest/loginctl.html)。
+
+`pagehub service start/stop/restart/status` 在 Linux 上使用 `systemctl --user`，在 macOS 上使用 launchd。停止 Linux 服务不会关闭登录自启动；卸载会关闭自启动并移除本实例的 unit，同时保留数据。Setup 拒绝其他安装的 unit 和 drop-in，升级失败会恢复旧可执行文件、设置、unit、运行状态与自启动状态。Linux JSON 服务状态在启用登录自启动时包含 `enabled: true`。
+
+目前仅支持 macOS 和 Linux。
 
 ## 使用
 
@@ -47,7 +57,7 @@ go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 | 命令 | 行为 |
 | --- | --- |
 | `pagehub serve` | 前台运行 HTTP 和 MCP |
-| `pagehub setup` | 安装或升级 macOS 后台服务，启动并等待健康检查 |
+| `pagehub setup` | 安装或升级 macOS/Linux 后台服务，启动并等待健康检查 |
 | `pagehub service start/stop/restart/status` | 管理用户级后台服务 |
 | `pagehub connect codex/claude` | 注册本服务，保留其他客户端配置 |
 | `pagehub disconnect codex/claude` | 移除指向本服务的 Pagehub 注册 |
@@ -58,7 +68,7 @@ go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 
 每条命令支持 `--help`。`--json` 提供机器可读结果；成功退出码为 0，操作失败为 1，参数解析或校验失败为 2。错误写入 stderr。`--data-dir`、`--port`、`--service-name` 可覆盖保存的设置；连接命令支持 `--config-file` 指定配置文件。
 
-在 `setup` 时修改 `--service-name`，会迁移该数据目录记录的服务；新进程通过健康检查后删除旧 LaunchAgent，启动失败则恢复原安装。健康检查会将 Pagehub 进程与 launchd 报告的 PID 核对。即使保存的设置损坏，`version` 仍能正常输出。
+在 `setup` 时修改 `--service-name`，会迁移该数据目录记录的服务；新进程通过健康检查后删除旧服务文件，启动失败则恢复原安装。健康检查会将 Pagehub 进程与 launchd 或 systemd 报告的 PID 核对。即使保存的设置损坏，`version` 仍能正常输出。
 
 服务默认监听 `0.0.0.0:8765` 的 IPv4。不同实例必须使用不同端口、数据目录和 service name。开发实例示例：
 
@@ -80,7 +90,7 @@ pagehub setup
 pagehub doctor
 ```
 
-Go 安装用户再次执行 `go install github.com/kuopenx/pagehub/cmd/pagehub@latest`，然后在 macOS 上执行 `pagehub setup` 和 `pagehub doctor`。Linux 前台实例需要重启以使用新可执行文件。
+Go 安装用户再次执行 `go install github.com/kuopenx/pagehub/cmd/pagehub@latest`，然后在 macOS 或 Linux 上执行 `pagehub setup` 和 `pagehub doctor`。前台实例需要重启以使用新可执行文件。
 
 `setup` 将当前版本复制到 `~/.pagehub/bin/pagehub`，不会覆盖包管理器的文件。启动失败时回滚之前的二进制、设置和服务注册。现有页面、URL、令牌和修订号保持不变；旧版 launchd 标签迁移至 `io.pagehub.agent`。
 
@@ -127,7 +137,7 @@ Dashboard 和页面允许 LAN 访问，无登录；MCP 管理仅接受 loopback�
 | 问题 | 检查 |
 | --- | --- |
 | 服务未启动 | `pagehub service status`；`pagehub service start`；检查 `pagehub.log` |
-| 本机可访问、手机不可访问 | 同一 Wi-Fi、正确 IPv4、macOS 系统设置中的 Pagehub 入站防火墙许可 |
+| 本机可访问、手机不可访问 | 同一 Wi-Fi、正确 IPv4、入站防火墙许可（macOS 系统设置或 Linux 防火墙） |
 | MCP 401 | 用同一数据目录重新执行 `pagehub connect <client>` |
 | MCP 403 | 使用本机管理 URL，检查 Host/Origin；LAN 仅用于页面访问 |
 | 新工具未出现 | 重新打开客户端会话 |

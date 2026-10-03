@@ -10,7 +10,7 @@ Maintainers need push and Release permissions. The Homebrew tap is [kuopenx/home
 
 ## Validate and publish
 
-1. Update `internal/buildinfo.Version`, release notes, and documentation in both English and Simplified Chinese.
+1. Update `internal/buildinfo.Version`, the README version, and documentation in both English and Simplified Chinese. Add matching `docs/releases/vX.Y.Z.md` and `docs/releases/vX.Y.Z.zh-CN.md` release notes; the source-release workflow uses the tagged English file as its Release body.
 2. Run the checks and real disposable acceptance in [CONTRIBUTING.md](../CONTRIBUTING.md). For workflow changes, also validate YAML and embedded shell syntax.
 3. Refresh `THIRD_PARTY_NOTICES.md` if dependencies changed. Review the diff for secrets and generated files.
 4. Push the commit and wait for macOS/Linux CI to succeed.
@@ -27,8 +27,8 @@ Remove any previously uploaded binary archives and binary `checksums.txt` attach
 
 ## Upgrade compatibility
 
-After installing a newer version from source, run `pagehub setup` on macOS to update the managed background executable. Restart foreground Linux instances separately. Homebrew's executable is never overwritten by Pagehub. Setup preserves pages, token, settings, and revisions, waits for health, and restores the prior executable/service configuration when startup fails. The legacy 0.2.0 launchd label migrates to `io.pagehub.agent` after successful startup.
+After installing a newer version from source, run `pagehub setup` on macOS or Linux to update the managed background executable. Restart foreground instances separately. Homebrew's executable is never overwritten by Pagehub. Setup preserves pages, token, settings, and revisions, waits for health, and restores the prior executable/service configuration when startup fails. The legacy 0.2.0 launchd label migrates to `io.pagehub.agent` after successful startup.
 
-Setup also migrates a saved custom service label when `--service-name` changes. Readiness requires a Pagehub health response from the PID reported by launchd; an unrelated HTTP 200 response or redirect does not qualify. Local management clients pin the loopback authority and never follow redirects or use environment proxies.
+Setup also migrates a saved custom service label when `--service-name` changes. Readiness requires a Pagehub health response from the PID reported by launchd or systemd; an unrelated HTTP 200 response or redirect does not qualify. Local management clients pin the loopback authority and never follow redirects or use environment proxies.
 
 Settings currently use schema version 1. Existing page metadata without a revision is read as revision 1. Future page-format changes need fixtures, restart tests, and a rollback strategy before release.

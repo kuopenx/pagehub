@@ -40,11 +40,15 @@ type Manager struct {
 	PIDAlive            func(int) bool
 }
 type Status struct {
-	Registered bool   `json:"registered"`
-	Running    bool   `json:"running"`
-	PID        int    `json:"pid,omitempty"`
-	Label      string `json:"label"`
-	Binary     string `json:"binary"`
+	activeState   string
+	loadState     string
+	systemdResult string
+	Registered    bool   `json:"registered"`
+	Running       bool   `json:"running"`
+	Enabled       bool   `json:"enabled,omitempty"`
+	PID           int    `json:"pid,omitempty"`
+	Label         string `json:"label"`
+	Binary        string `json:"binary"`
 }
 
 func (m Manager) Binary() string { return filepath.Join(m.DataDir, "bin", "pagehub") }
@@ -53,13 +57,15 @@ func (m Manager) Plist() string {
 }
 func (m Manager) domain() string    { return "gui/" + strconv.Itoa(m.UID) }
 func (m Manager) qualified() string { return m.domain() + "/" + m.Settings.ServiceName }
-func (m Manager) check() error {
-	goos := m.GOOS
-	if goos == "" {
-		goos = runtime.GOOS
+func (m Manager) platform() string {
+	if m.GOOS != "" {
+		return m.GOOS
 	}
-	if goos != "darwin" {
-		return errors.New("background service management currently supports macOS only; use pagehub serve")
+	return runtime.GOOS
+}
+func (m Manager) check() error {
+	if m.platform() != "darwin" && m.platform() != "linux" {
+		return errors.New("Pagehub supports macOS and Linux only")
 	}
 	return m.Settings.Validate()
 }
@@ -76,6 +82,9 @@ func (m Manager) Status(ctx context.Context) (Status, error) {
 	s := Status{Label: m.Settings.ServiceName, Binary: m.Binary()}
 	if err := m.check(); err != nil {
 		return s, err
+	}
+	if m.platform() == "linux" {
+		return m.systemdStatus(ctx)
 	}
 	out, err := m.runner()(ctx, "launchctl", "print", m.qualified())
 	if err != nil {
@@ -108,6 +117,9 @@ func (m Manager) plist() []byte {
 `, xmlText(m.Settings.ServiceName), b.String()))
 }
 func (m Manager) owned() error {
+	if m.platform() == "linux" {
+		return m.systemdOwned()
+	}
 	b, err := os.ReadFile(m.Plist())
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -123,6 +135,9 @@ func (m Manager) owned() error {
 func (m Manager) Stop(ctx context.Context) error {
 	if err := m.check(); err != nil {
 		return err
+	}
+	if m.platform() == "linux" {
+		return m.systemdStop(ctx)
 	}
 	if err := m.owned(); err != nil {
 		return err
@@ -175,6 +190,9 @@ func (m Manager) Stop(ctx context.Context) error {
 func (m Manager) Start(ctx context.Context) error {
 	if err := m.check(); err != nil {
 		return err
+	}
+	if m.platform() == "linux" {
+		return m.systemdStart(ctx)
 	}
 	if err := m.owned(); err != nil {
 		return err
@@ -257,7 +275,7 @@ func (m Manager) Install(ctx context.Context, source string) error {
 	if err != nil {
 		return err
 	}
-	paths := []string{m.Binary(), m.Plist(), filepath.Join(m.DataDir, "settings.json")}
+	paths := []string{m.Binary(), m.serviceFile(), filepath.Join(m.DataDir, "settings.json")}
 	old := make([][]byte, len(paths))
 	exists := make([]bool, len(paths))
 	for i, path := range paths {
@@ -278,16 +296,16 @@ func (m Manager) Install(ctx context.Context, source string) error {
 		return err
 	}
 	type previousService struct {
-		manager    Manager
-		plist      []byte
-		registered bool
+		manager Manager
+		content []byte
+		status  Status
 	}
 	var previous []previousService
 	var labels []string
 	if exists[2] {
 		labels = append(labels, stored.ServiceName)
 	}
-	if m.Settings.ServiceName == config.DefaultLabel && (!exists[2] || stored.ServiceName != config.LegacyLabel) {
+	if m.platform() == "darwin" && m.Settings.ServiceName == config.DefaultLabel && (!exists[2] || stored.ServiceName != config.LegacyLabel) {
 		labels = append(labels, config.LegacyLabel)
 	}
 	for _, label := range labels {
@@ -297,7 +315,7 @@ func (m Manager) Install(ctx context.Context, source string) error {
 		prior := m
 		prior.Settings = stored
 		prior.Settings.ServiceName = label
-		plist, e := os.ReadFile(prior.Plist())
+		content, e := os.ReadFile(prior.serviceFile())
 		if errors.Is(e, os.ErrNotExist) {
 			if label == stored.ServiceName {
 				status, statusErr := prior.Status(ctx)
@@ -305,7 +323,7 @@ func (m Manager) Install(ctx context.Context, source string) error {
 					return statusErr
 				}
 				if status.Registered {
-					return errors.New("previous service has no owned LaunchAgent file; left unchanged")
+					return errors.New("previous service has no owned service file; left unchanged")
 				}
 			}
 			continue
@@ -320,7 +338,7 @@ func (m Manager) Install(ctx context.Context, source string) error {
 		if e != nil {
 			return e
 		}
-		previous = append(previous, previousService{prior, plist, status.Registered})
+		previous = append(previous, previousService{prior, content, status})
 	}
 	rollback := func(cause error) error {
 		recovery, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -330,6 +348,11 @@ func (m Manager) Install(ctx context.Context, source string) error {
 			// Never restore/start the old job while the replacement may still
 			// own the data directory. Leave the replacement files consistent.
 			return errors.Join(cause, fmt.Errorf("rollback could not stop replacement service; installation left in place: %w", e))
+		}
+		if m.platform() == "linux" {
+			if e := m.systemdDisable(recovery); e != nil {
+				return errors.Join(cause, e)
+			}
 		}
 		for i, path := range paths {
 			mode := os.FileMode(0600)
@@ -349,19 +372,15 @@ func (m Manager) Install(ctx context.Context, source string) error {
 				problems = append(problems, e)
 			}
 		}
-		if oldStatus.Registered {
-			if e := m.Start(recovery); e != nil {
-				problems = append(problems, e)
-			}
+		if e := m.restoreService(recovery, oldStatus); e != nil {
+			problems = append(problems, e)
 		}
 		for _, prior := range previous {
-			if e := config.AtomicWrite(prior.manager.Plist(), prior.plist, 0600); e != nil {
+			if e := config.AtomicWrite(prior.manager.serviceFile(), prior.content, 0600); e != nil {
 				problems = append(problems, e)
 			}
-			if prior.registered {
-				if e := prior.manager.Start(recovery); e != nil {
-					problems = append(problems, e)
-				}
+			if e := prior.manager.restoreService(recovery, prior.status); e != nil {
+				problems = append(problems, e)
 			}
 		}
 		return errors.Join(problems...)
@@ -377,7 +396,7 @@ func (m Manager) Install(ctx context.Context, source string) error {
 	if err = config.AtomicWrite(m.Binary(), b, 0700); err != nil {
 		return rollback(err)
 	}
-	if err = config.AtomicWrite(m.Plist(), m.plist(), 0600); err != nil {
+	if err = config.AtomicWrite(m.serviceFile(), m.serviceContent(), 0600); err != nil {
 		return rollback(err)
 	}
 	if err = config.Save(m.DataDir, m.Settings); err != nil {
@@ -385,6 +404,11 @@ func (m Manager) Install(ctx context.Context, source string) error {
 	}
 	if err = m.Start(ctx); err != nil {
 		return rollback(err)
+	}
+	if m.platform() == "linux" {
+		if err = m.systemdEnable(ctx); err != nil {
+			return rollback(err)
+		}
 	}
 	ready := m.Ready
 	if ready == nil {
@@ -394,7 +418,17 @@ func (m Manager) Install(ctx context.Context, source string) error {
 		return rollback(err)
 	}
 	for _, prior := range previous {
-		if err = os.Remove(prior.manager.Plist()); err != nil {
+		if prior.manager.platform() == "linux" {
+			if err = prior.manager.systemdDisable(ctx); err != nil {
+				return rollback(err)
+			}
+		}
+		if err = os.Remove(prior.manager.serviceFile()); err != nil {
+			return rollback(err)
+		}
+	}
+	if m.platform() == "linux" {
+		if err = m.systemdReload(ctx); err != nil {
 			return rollback(err)
 		}
 	}
@@ -404,8 +438,18 @@ func (m Manager) Uninstall(ctx context.Context) error {
 	if err := m.Stop(ctx); err != nil {
 		return err
 	}
-	if err := os.Remove(m.Plist()); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if m.platform() == "linux" {
+		if err := m.systemdDisable(ctx); err != nil {
+			return err
+		}
+	}
+	if err := os.Remove(m.serviceFile()); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
+	}
+	if m.platform() == "linux" {
+		if err := m.systemdReload(ctx); err != nil {
+			return err
+		}
 	}
 	if err := os.Remove(m.Binary()); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err

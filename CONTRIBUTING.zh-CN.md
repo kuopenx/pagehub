@@ -26,7 +26,7 @@ go vet ./...
 go run ./cmd/pagehub-verify --binary ./pagehub
 ```
 
-macOS 验收安装一个名称唯一的临时 LaunchAgent，验证所有 CLI 命令，再卸载；不删除既有用户页面。Linux 验证前台服务和 MCP 工具，后台管理仍仅支持 macOS。
+macOS 和 Linux 验收安装一个名称唯一的临时用户服务（LaunchAgent 或 systemd unit），验证所有 CLI 命令与 MCP 工具后卸载；不删除既有用户页面。Linux 验收需要 systemd、已运行的用户管理器和用户 bus；CI 在验收前启动隔离 runner 的用户管理器。
 
 Go 文件需要 `gofmt`。测试覆盖行为、失败路径、幂等性和兼容性。接口变化同步 README 和工具说明。英文是默认文档语言，修改时同步对应的 `.zh-CN.md` 文档。约束见 [AGENTS.zh-CN.md](AGENTS.zh-CN.md)，源码发布见 [docs/releasing.zh-CN.md](docs/releasing.zh-CN.md)。
 

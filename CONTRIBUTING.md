@@ -26,7 +26,7 @@ Run real acceptance against a disposable instance:
 go run ./cmd/pagehub-verify --binary ./pagehub
 ```
 
-On macOS this installs a uniquely named temporary LaunchAgent and exercises every CLI command before uninstalling it. It never removes existing user pages. On Linux it checks the foreground service and MCP tools; background management remains macOS-only.
+On macOS and Linux this installs a uniquely named temporary user service (LaunchAgent or systemd unit), exercises every CLI command and MCP tools, then uninstalls it. It never removes existing user pages. Linux acceptance requires systemd with an active user manager and its user bus; CI starts an isolated runner user manager before acceptance.
 
 Go files must be formatted with `gofmt`. Tests should cover behavior, failure paths, idempotency and compatibility. Document interface changes in the README and tool descriptions. English is the default documentation language; update matching `.zh-CN.md` files together. See [AGENTS.md](AGENTS.md) for invariants and [docs/releasing.md](docs/releasing.md) for publishing.
 
