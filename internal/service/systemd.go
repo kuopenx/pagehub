@@ -101,6 +101,24 @@ func (m Manager) systemdOwned() error {
 	}
 	return nil
 }
+
+// Distribution-wide defaults do not change installation ownership. Accept only
+// vendor user-service defaults, never unit-specific, administrator, or user
+// overrides. Pagehub neither writes nor removes these files.
+func systemdVendorDropIns(paths string) bool {
+	for _, path := range strings.Fields(paths) {
+		if filepath.Clean(path) != path || !strings.HasSuffix(path, ".conf") {
+			return false
+		}
+		switch filepath.Dir(path) {
+		case "/usr/lib/systemd/user/service.d", "/lib/systemd/user/service.d":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (m Manager) systemdStatus(ctx context.Context) (Status, error) {
 	s := Status{Label: m.Settings.ServiceName, Binary: m.Binary()}
 	out, err := m.systemctl(ctx, "show", m.unitName(), "--property=LoadState,ActiveState,MainPID,UnitFileState,FragmentPath,DropInPaths,Result", "--no-pager", "--all")
@@ -117,7 +135,7 @@ func (m Manager) systemdStatus(ctx context.Context) (Status, error) {
 	if props["LoadState"] == "not-found" {
 		return s, nil
 	}
-	if props["FragmentPath"] != m.serviceFile() || props["DropInPaths"] != "" {
+	if props["FragmentPath"] != m.serviceFile() || !systemdVendorDropIns(props["DropInPaths"]) {
 		return s, errors.New("systemd unit or drop-in belongs to another installation; left unchanged")
 	}
 	s.loadState = props["LoadState"]

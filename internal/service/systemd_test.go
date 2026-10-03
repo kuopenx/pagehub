@@ -341,3 +341,61 @@ func TestSystemdExplicitStartRecoversFailedStateAndRateLimit(t *testing.T) {
 		t.Fatal("start-limit-hit not recovered")
 	}
 }
+
+func TestSystemdVendorDropIns(t *testing.T) {
+	for _, paths := range []string{
+		"/usr/lib/systemd/user/service.d/10-timeout-abort.conf",
+		"/lib/systemd/user/service.d/10-timeout-abort.conf",
+		"/usr/lib/systemd/user/service.d/10-timeout-abort.conf /usr/lib/systemd/user/service.d/20-defaults.conf",
+	} {
+		t.Run(paths, func(t *testing.T) {
+			m, f, source := linuxManager(t)
+			f.dropins = paths
+			ctx := context.Background()
+			for range 2 {
+				if err := m.Install(ctx, source); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := m.Restart(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if err := m.Uninstall(ctx); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestSystemdRejectsSpecificAndNonVendorDropIns(t *testing.T) {
+	for _, paths := range []string{
+		"/usr/lib/systemd/user/io.pagehub.agent.service.d/override.conf",
+		"/usr/lib/systemd/user/io.pagehub-.service.d/override.conf",
+		"/etc/systemd/user/service.d/override.conf",
+		"/run/systemd/user/service.d/override.conf",
+		"/home/test/.config/systemd/user/service.d/override.conf",
+		"/usr/lib/systemd/system/service.d/override.conf",
+		"/usr/lib/systemd/user/service.d/../io.pagehub.agent.service.d/override.conf",
+		"/usr/lib/systemd/user/service.d/nested/override.conf",
+		"/usr/lib/systemd/user/service.d/10-timeout-abort.conf /tmp/foreign.conf",
+	} {
+		t.Run(paths, func(t *testing.T) {
+			m, f, source := linuxManager(t)
+			ctx := context.Background()
+			if err := m.Install(ctx, source); err != nil {
+				t.Fatal(err)
+			}
+			f.dropins = paths
+			stops := f.stops
+			if err := m.Install(ctx, source); err == nil {
+				t.Fatal("external override accepted")
+			}
+			if err := m.Uninstall(ctx); err == nil {
+				t.Fatal("external override uninstalled")
+			}
+			if f.stops != stops {
+				t.Fatal("external override stopped")
+			}
+		})
+	}
+}

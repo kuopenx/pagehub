@@ -6,7 +6,7 @@
 
 一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
 
-适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.4.0**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.4.0.zh-CN.md)。
+适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.4.1**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.4.1.zh-CN.md)。
 
 ## 安装
 
@@ -44,7 +44,7 @@ go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 
 如果需要在登录前随开机启动、退出登录后继续运行，可自行执行 `loginctl enable-linger "$USER"`（可能需要授权）。Pagehub 不修改 linger 设置，参见 [systemd loginctl](https://www.freedesktop.org/software/systemd/man/latest/loginctl.html)。
 
-`pagehub service start/stop/restart/status` 在 Linux 上使用 `systemctl --user`，在 macOS 上使用 launchd。停止 Linux 服务不会关闭登录自启动；卸载会关闭自启动并移除本实例的 unit，同时保留数据。Setup 拒绝其他安装的 unit 和 drop-in，升级失败会恢复旧可执行文件、设置、unit、运行状态与自启动状态。Linux JSON 服务状态在启用登录自启动时包含 `enabled: true`。
+`pagehub service start/stop/restart/status` 在 Linux 上使用 `systemctl --user`，在 macOS 上使用 launchd。停止 Linux 服务不会关闭登录自启动；卸载会关闭自启动并移除本实例的 unit，同时保留数据。Setup 允许 `/usr/lib/systemd/user/service.d/`（或 `/lib/systemd/user/service.d/`）中的发行版全局默认配置，包括 Fedora 的超时策略，并保留这些配置。它仍拒绝其他安装的 unit、服务专属 drop-in 和管理员或用户的 override；升级失败会恢复旧可执行文件、设置、unit、运行状态与自启动状态。Linux JSON 服务状态在启用登录自启动时包含 `enabled: true`。
 
 目前仅支持 macOS 和 Linux。
 

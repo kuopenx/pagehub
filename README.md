@@ -6,7 +6,7 @@
 
 One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.4.0**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.4.0.md).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.4.1**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.4.1.md).
 
 ## Installation
 
@@ -44,7 +44,7 @@ For building from a checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 To start at boot before login and keep running after logout, you can explicitly enable lingering with `loginctl enable-linger "$USER"` (authorization may be required). Pagehub does not change lingering settings. See [systemd loginctl](https://www.freedesktop.org/software/systemd/man/latest/loginctl.html).
 
-`pagehub service start/stop/restart/status` uses `systemctl --user` on Linux and launchd on macOS. Stopping a Linux service leaves login autostart enabled; uninstall disables it and removes the owned unit while preserving data. Setup rejects foreign units and drop-ins, and failed upgrades restore the previous executable, settings, unit, running state, and autostart state. Linux JSON service status includes `enabled: true` when login autostart is enabled.
+`pagehub service start/stop/restart/status` uses `systemctl --user` on Linux and launchd on macOS. Stopping a Linux service leaves login autostart enabled; uninstall disables it and removes the owned unit while preserving data. Setup accepts distribution-wide defaults in `/usr/lib/systemd/user/service.d/` (or `/lib/systemd/user/service.d/`), including Fedora’s timeout policy, without changing them. It rejects foreign units, unit-specific drop-ins, and administrator/user overrides. Failed upgrades restore the previous executable, settings, unit, running state, and autostart state. Linux JSON service status includes `enabled: true` when login autostart is enabled.
 
 Only macOS and Linux are supported.
 
