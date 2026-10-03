@@ -6,7 +6,7 @@
 
 一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
 
-适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.5.1**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.5.1.zh-CN.md)。
+适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.5.2**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.5.2.zh-CN.md)。
 
 ## 安装
 
@@ -120,7 +120,7 @@ HTTP 与 MCP 共用端口，管理地址为 `http://127.0.0.1:8765/_mcp`。使�
 
 工具参数与用法见 [MCP 示例](docs/mcp.zh-CN.md)，完整 HTML 示例见 [鹈鹕骑自行车](examples/pelican-bicycle.html)。修订号保护并发修改，不保存历史副本。
 
-每个页面记录 `created_by` 和 `updated_by`，MCP 返回值及 Dashboard 均展示。`create_page` 必须填写 `created_by`，并用它初始化两项；`update_page` 和 `patch_page` 必须填写 `updated_by`，且保留原创建者。Agent 应按 `model-name / high` 格式填入当前模型名称和推理强度；无法确定的部分使用 `unknown`，不要猜测。缺失、空白、格式错误或多行值会被拒绝。这是调用者自报的标签，并非经过认证的身份。写入失败不会改变归属记录。旧页面缺少这些字段时返回空字符串且 Dashboard 隐藏相应字段，不推断或补写原创建者。现有客户端须补充这些必填写入参数。
+每个页面记录 `created_by` 和 `updated_by`，MCP 返回值及 Dashboard 均展示。`create_page` 必须填写 `created_by`，创建时只记录创建者；首次成功更新或 patch（第 2 版起）才记录和返回 `updated_by`；`update_page` 和 `patch_page` 必须填写 `updated_by`，且保留原创建者。Agent 应按 `model-name / high` 格式填入当前模型名称和推理强度；无法确定的部分使用 `unknown`，不要猜测。缺失、空白、格式错误或多行值会被拒绝。这是调用者自报的标签，并非经过认证的身份。写入失败不会改变归属记录。旧页面的未知创建者返回空 `created_by`，未知更新者省略 `updated_by`；Dashboard 隐藏相应字段，不推断或补写原创建者。现有客户端须补充这些必填写入参数。
 
 ## 内容与访问边界
 

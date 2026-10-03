@@ -31,7 +31,7 @@ type Page struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	CreatedBy string    `json:"created_by"`
-	UpdatedBy string    `json:"updated_by"`
+	UpdatedBy string    `json:"updated_by,omitempty"`
 	SizeBytes int64     `json:"size_bytes"`
 	Revision  int64     `json:"revision"`
 }
@@ -110,6 +110,11 @@ func OpenStore(dataDir string) (*Store, error) {
 		if p.Revision < 1 {
 			p.Revision = 1 // Legacy pages start at revision 1.
 		}
+		// Older releases populated the updater at creation. Revision 1 has no
+		// update yet; normalize only the catalog, leaving saved metadata untouched.
+		if p.Revision == 1 {
+			p.UpdatedBy = ""
+		}
 		s.pages[p.ID] = p
 	}
 	return s, nil
@@ -164,7 +169,7 @@ func (s *Store) Create(title, content, createdBy string) (Page, error) {
 		}
 	}
 	now := time.Now().UTC()
-	p := Page{ID: id, Title: strings.TrimSpace(title), MediaType: "text/html", CreatedAt: now, UpdatedAt: now, Revision: 1, CreatedBy: strings.TrimSpace(createdBy), UpdatedBy: strings.TrimSpace(createdBy)}
+	p := Page{ID: id, Title: strings.TrimSpace(title), MediaType: "text/html", CreatedAt: now, UpdatedAt: now, Revision: 1, CreatedBy: strings.TrimSpace(createdBy)}
 	if err := s.commit(&p, strings.NewReader(content), false); err != nil {
 		return Page{}, err
 	}

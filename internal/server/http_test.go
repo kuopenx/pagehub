@@ -90,7 +90,7 @@ func TestMCPAndHTTPIntegration(t *testing.T) {
 	}
 	r := call("create_page", map[string]any{"created_by": "test-model / high", "title": "鹈鹕 <script>alert(1)</script>", "media_type": "text/html", "html": testHTML})
 	p := decodePage(r).Page
-	if p.CreatedBy != "test-model / high" || p.UpdatedBy != p.CreatedBy {
+	if p.CreatedBy != "test-model / high" || p.UpdatedBy != "" {
 		t.Fatal("create attribution missing")
 	}
 	for _, tool := range []string{"create_page", "update_page", "patch_page"} {
@@ -247,10 +247,21 @@ func TestDashboardRendering(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := get("/")
-	for _, want := range []string{`data-count="1"`, `data-id="` + p.ID + `"`, fmt.Sprintf(`style="--h:%d"`, pageHue(p.ID)), `id="grid"`, `第 1 版`, `Created by`, `Updated by`, `&lt;script&gt;alert(1)&lt;/script&gt; / high`} {
+	for _, want := range []string{`data-count="1"`, `data-id="` + p.ID + `"`, fmt.Sprintf(`style="--h:%d"`, pageHue(p.ID)), `id="grid"`, `第 1 版`, `Created by`, `&lt;script&gt;alert(1)&lt;/script&gt; / high`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard missing %q", want)
 		}
+	}
+	if strings.Contains(body, "Updated by") {
+		t.Fatal("new page must not show an updater")
+	}
+	title := p.Title
+	if _, err := s.Update(p.ID, &title, nil, "updater-model / medium"); err != nil {
+		t.Fatal(err)
+	}
+	body = get("/")
+	if !strings.Contains(body, "Created by") || !strings.Contains(body, "Updated by") || !strings.Contains(body, "第 2 版") {
+		t.Fatal("updater should appear after revision 2")
 	}
 	idAt := strings.Index(body, `title="`+p.ID+`">`+p.ID+`</span>`)
 	byAt := strings.Index(body, `<p class="by">`)
@@ -275,6 +286,7 @@ func TestDashboardRendering(t *testing.T) {
 	}
 	s.mu.Lock()
 	legacy.UpdatedBy = "updater-model / high"
+	legacy.Revision = 2
 	s.pages[p.ID] = legacy
 	s.mu.Unlock()
 	body = get("/")

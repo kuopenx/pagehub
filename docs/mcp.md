@@ -40,7 +40,7 @@ New pages and legacy metadata without a revision start at 1. `update_page` also 
 
 Every create must supply `created_by`; every update/patch must supply `updated_by`. Use the current model name and reasoning effort in the single-line format `model-name / high`. The examples contain placeholders, not a model to copy. Use `unknown` for an unavailable component (for example `model-name / unknown`), never invent it. Missing, blank, malformed, control-character, or non-string values are rejected. Attribution is caller-reported and publicly visible on the Dashboard; Pagehub cannot verify the running model.
 
-Create sets both fields to the creator. Successful updates/patches change only `updated_by`, atomically with content and revision. Failed operations change nothing. Read/list responses include both fields. Legacy records use empty strings for unknown attribution, and are hidden on the Dashboard; later updates preserve the unknown original creator.
+Create records only `created_by`; `updated_by` is omitted from metadata and responses until the first successful update/patch (revision 2+). Revision-1 records from older versions also omit the updater when read, without rewriting their saved metadata. Successful updates/patches change only `updated_by`, atomically with content and revision. Failed operations change nothing. Read/list responses include both fields. Unknown legacy creators return an empty `created_by`; unknown updaters omit `updated_by`. Missing fields are hidden on the Dashboard; later updates preserve the unknown original creator.
 
 Example title-only `update_page`:
 

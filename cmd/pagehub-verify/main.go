@@ -198,7 +198,7 @@ func main() {
 	}
 	html := "<!doctype html>\n<html lang=\"zh-CN\">\n<meta charset=\"UTF-8\">\n<title>Pagehub acceptance</title>\n<svg viewBox=\"0 0 400 200\"><circle cx=\"70\" cy=\"120\" r=\"30\" fill=\"#25756b\"/><text x=\"120\" y=\"130\">MCP live test</text></svg>\n</html>\n"
 	p := call("create_page", map[string]any{"created_by": "test-model / high", "title": "Pagehub 临时验收", "media_type": "text/html", "html": html}, false)["page"].(map[string]any)
-	ensure(p["created_by"] == "test-model / high" && p["updated_by"] == p["created_by"], "creation attribution")
+	ensure(p["created_by"] == "test-model / high" && p["updated_by"] == nil, "creation attribution")
 	id := p["id"].(string)
 	call("create_page", map[string]any{"title": "rejected", "media_type": "text/html", "html": html}, true)
 	call("update_page", map[string]any{"id": id, "title": "rejected"}, true)

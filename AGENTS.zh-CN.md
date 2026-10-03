@@ -38,7 +38,7 @@ Go 修改后运行 `gofmt`。HTTP 测试需要临时端口监听许可；环境�
 - 标题可重复，UUID 由服务器生成；update/patch 保持 UUID、URL 和创建时间。
 - read 保留原始文本与换行，行号从 1 开始、首尾包含，支持超长行。
 - patch 需要 expected_revision，非空 old_text 必须唯一匹配，包括重叠。顺序编辑，失败整批不发布、不修改元数据或版本。
-- MCP 创建必须填写 `created_by`，更新与 patch 必须填写 `updated_by`，格式为调用者自报的 `model-name / reasoning-effort`。创建时初始化两项，后续写入保留创建者；失败不改变归属或修订号。旧页面缺失字段保持未知，不推断模型。
+- MCP 创建必须填写 `created_by`，更新与 patch 必须填写 `updated_by`，格式为调用者自报的 `model-name / reasoning-effort`。创建时只记录创建者，首次成功更新或 patch（第 2 版起）才记录 `updated_by`，后续写入保留创建者；失败不改变归属或修订号。旧页面缺失字段保持未知，不推断模型。
 - 新页和旧元数据从 revision=1 开始，每次成功 update/patch 增加一次；update 版本检查保持可选，不保存历史副本。
 - 暂存完整文件和元数据再发布，保留中断恢复与并发一致性。修改格式要兼容既有 page.json，不能迁移或删除用户页面来整理代码。
 - 页面和 Dashboard 允许 LAN；MCP 仅 loopback、合法 Host/Origin 与令牌。令牌首次生成后复用，不写死或打印。
