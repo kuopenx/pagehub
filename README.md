@@ -6,7 +6,7 @@
 
 One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.5.2**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.5.2.md).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.5.3**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.5.3.md).
 
 ## Installation
 
@@ -52,7 +52,7 @@ Only macOS and Linux are supported.
 
 The local dashboard is <http://127.0.0.1:8765/>. Connect your phone and computer to the same LAN and open `http://<computer-LAN-IPv4>:8765/`. `setup`, `doctor`, and `open` print the available LAN links.
 
-Ask your MCP client to create a page, then open the returned URL or find it on the dashboard. Creating, editing, and deleting pages takes effect immediately; an open dashboard checks for changes and shows a prompt that refreshes the list in place. Search filters as you type (press `/` to focus it, then Enter to open the first match), and you can sort by recently updated, recently created, or title; search and sort are kept in the URL. Click anywhere on a card to open its page in the same tab; use the browser back button to return. On this computer, copy-link copies the LAN address, and the QR button shows a scannable code for opening a page on your phone. The dashboard follows the system light or dark appearance and still works with JavaScript disabled.
+Ask your MCP client to create a page, then open the returned URL or find it on the dashboard. Creating, editing, and deleting pages takes effect immediately; an open dashboard checks for changes and shows a prompt that refreshes the list in place. Search filters as you type (press `/` to focus it, then Enter to open the first match), and you can sort by recently updated, recently created, or title; search and sort are kept in the URL. Click anywhere on a card to open its page in the same tab; use the browser back button to return to the same list position; reloading starts at the top. Copy-link and QR buttons appear when you hover a card and are always shown on touch screens. On this computer, copy-link copies the LAN address, and the QR button shows a scannable code for opening a page on your phone. The dashboard follows the system light or dark appearance and still works with JavaScript disabled.
 
 | Command | Behavior |
 | --- | --- |
