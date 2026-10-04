@@ -243,6 +243,75 @@ func main() {
 		ensure(sha256.Sum256([]byte(r["content"].(string))) == hash, "existing page preserved")
 	}
 	checks = append(checks, "all six tools over real MCP HTTP", "required model attribution; immutable creator and latest updater", "source and exact line ranges", "failed batch saves nothing", "stale revision rejected", "URL and creation time preserved", "HTTP serves patched source", "temporary page deleted; existing pages unchanged")
+	if temp != "" {
+		credentialCommand := func(action string) string {
+			return strings.TrimSpace(string(run("token", action, "--data-dir", temp)))
+		}
+		namedCommand := func(action, name string) string {
+			return strings.TrimSpace(string(run("token", action, "--name", name, "--data-dir", temp)))
+		}
+		deviceA := namedCommand("generate", "device-a")
+		deviceB := namedCommand("generate", "device-b")
+		ensure(len(deviceA) == 64 && len(deviceB) == 64 && deviceA != deviceB && deviceA != token && deviceB != token, "independent device tokens")
+		listing := string(run("token", "list", "--data-dir", temp, "--json"))
+		ensure(!strings.Contains(listing, token) && !strings.Contains(listing, deviceA) && !strings.Contains(listing, deviceB), "token list reveals credentials")
+		_, err = session.ListTools(ctx, nil)
+		must(err) // Adding devices must preserve the original client's credential.
+		ensure(credentialCommand("status") == "active", "token status")
+		ensure(credentialCommand("show") == token && credentialCommand("generate") == token, "active token reused")
+		rotated := credentialCommand("rotate")
+		ensure(len(rotated) == 64 && rotated != token, "token rotated")
+		_, err = session.ListTools(ctx, nil)
+		ensure(err != nil, "old token still accepted after rotation")
+		checkCredential := func(value string, wantOK bool) {
+			hc, err := localhttp.NewClient(base+"/_mcp", value, 15*time.Second)
+			must(err)
+			defer hc.CloseIdleConnections()
+			c := mcp.NewClient(&mcp.Implementation{Name: "pagehub-token-acceptance", Version: "1"}, nil)
+			s, err := c.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: base + "/_mcp", HTTPClient: hc, DisableStandaloneSSE: true}, nil)
+			if !wantOK {
+				if err == nil {
+					s.Close()
+				}
+				ensure(err != nil, "revoked token accepted")
+				return
+			}
+			must(err)
+			defer s.Close()
+			tools, err := s.ListTools(ctx, nil)
+			must(err)
+			ensure(len(tools.Tools) == 6, "new token cannot access tools")
+		}
+		checkCredential(rotated, true)
+		checkCredential(deviceA, true)
+		checkCredential(deviceB, true)
+		ensure(namedCommand("revoke", "device-a") == "revoked", "device token revocation")
+		checkCredential(deviceA, false)
+		checkCredential(deviceB, true)
+		checkCredential(rotated, true)
+
+		ensure(credentialCommand("revoke") == "revoked" && credentialCommand("revoke") == "revoked", "repeated revocation")
+		checkCredential(rotated, false)
+		checkCredential(deviceB, true) // Revoking default leaves other devices connected.
+		// Repeated setup/restart must not restore a revoked credential.
+		run("setup", "--data-dir", temp, "--json")
+		ensure(credentialCommand("status") == "revoked", "setup restored revoked token")
+		checkCredential(deviceA, false)
+		checkCredential(deviceB, true)
+
+		checkCredential(rotated, false)
+		fresh := credentialCommand("generate")
+		ensure(len(fresh) == 64 && fresh != rotated && fresh != token, "regeneration reused old token")
+		checkCredential(fresh, true)
+		newA := namedCommand("generate", "device-a")
+		ensure(newA != deviceA, "device regeneration reused revoked credential")
+		checkCredential(newA, true)
+		checkCredential(deviceA, false)
+		checkCredential(deviceB, true)
+
+		run("doctor", "--data-dir", temp, "--json")
+		checks = append(checks, "real token generate/show/status/rotate/revoke; live invalidation; independent named devices; legacy token preserved; revocation survives setup/restart; regeneration restores selected token")
+	}
 	if temp != "" && (runtime.GOOS == "darwin" || runtime.GOOS == "linux") {
 		run("uninstall", "--data-dir", temp, "--service-name", func() string {
 			var s struct {
@@ -253,6 +322,7 @@ func main() {
 			return s.ServiceName
 		}(), "--json")
 		ensure(fileExists(filepath.Join(temp, "token")), "uninstall keeps token")
+		ensure(fileExists(filepath.Join(temp, "tokens.json")), "uninstall keeps device token registry")
 		checks = append(checks, "real uninstall; persistent data retained")
 	}
 	report := map[string]any{"verified_at": time.Now().UTC().Format(time.RFC3339), "checks": checks}

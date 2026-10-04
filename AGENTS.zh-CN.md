@@ -6,7 +6,7 @@
 
 ## 项目与代码
 
-Pagehub 是单文件 HTML artifact 服务，一个 Go 二进制提供 CLI、LAN 页面、本机 MCP 与 macOS/Linux 后台管理。用户安装使用不依赖 Python 或 Node。
+Pagehub 是单文件 HTML artifact 服务，一个 Go 二进制提供 CLI、LAN 页面、令牌认证的 MCP 与 macOS/Linux 后台管理。用户安装使用不依赖 Python 或 Node。
 
 - `cmd/pagehub`：CLI 入口；`internal/cli`：命令、退出码、JSON 输出与诊断。
 - `internal/server`：HTTP、MCP、嵌入 Dashboard、页面存储、修订号、补丁及日志。
@@ -41,7 +41,7 @@ Go 修改后运行 `gofmt`。HTTP 测试需要临时端口监听许可；环境�
 - MCP 创建必须填写 `created_by`，更新与 patch 必须填写 `updated_by`，格式为调用者自报的 `model-name / reasoning-effort`。创建时只记录创建者，首次成功更新或 patch（第 2 版起）才记录 `updated_by`，后续写入保留创建者；失败不改变归属或修订号。旧页面缺失字段保持未知，不推断模型。
 - 新页和旧元数据从 revision=1 开始，每次成功 update/patch 增加一次；update 版本检查保持可选，不保存历史副本。
 - 暂存完整文件和元数据再发布，保留中断恢复与并发一致性。修改格式要兼容既有 page.json，不能迁移或删除用户页面来整理代码。
-- 页面和 Dashboard 允许 LAN；MCP 仅 loopback、合法 Host/Origin 与令牌。令牌首次生成后复用，不写死或打印。
+- 页面和 Dashboard 允许 LAN；MCP 使用本地令牌列表或旧令牌文件中的有效 Bearer token 接受本机和远程请求，不限制来源 IP、Host 或 Origin。原来的唯一令牌保留为 default；命名设备令牌可共存，独立更换或废弃，不影响其他令牌。各令牌复用至显式更换或废弃。不写死令牌；只有显式 token generate/show/rotate 命令可以输出令牌供复制。
 - Dashboard 标题转义、刷新缓存一致性和有限日志轮转保持有效；日志不记录 HTML、认证头或令牌。
 - 后台安装保持 macOS 用户级 LaunchAgent 和 Linux 用户级 systemd unit，不改成系统 daemon、root 服务或关闭防火墙。升级失败恢复旧二进制与配置，卸载默认保留数据。
 - 所有 CLI 需有正常、失败和重复执行验证；客户端写入必须校验格式、检查并发变动并保留其他服务。
@@ -52,7 +52,7 @@ Go 修改后运行 `gofmt`。HTTP 测试需要临时端口监听许可；环境�
 
 项目文档默认使用英文，同步更新对应的 `.zh-CN.md` 文档。法律许可及依赖许可声明保留权威原文。
 
-使用临时目录和测试令牌。管理凭据只发送至 loopback；LAN 测试不带凭据。修改嵌入 Dashboard 后需重新构建。
+使用临时目录和测试令牌。本地管理客户端继续固定 loopback。LAN MCP 测试使用隔离实例与临时测试令牌；LAN 页面测试不带凭据。修改嵌入 Dashboard 后需重新构建。
 
 只在任务要求升级时替换实际安装；先通过构建与验证，升级后检查健康、既有内容/令牌/修订号持久化和 LAN。所有客户端共享一个服务。
 

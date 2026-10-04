@@ -6,7 +6,7 @@ These instructions apply throughout the repository. User documentation is in [RE
 
 ## Project and code
 
-Pagehub hosts single-file HTML artifacts. One Go executable provides the CLI, LAN pages, local MCP, and macOS/Linux background management. Installation and use do not depend on Python or Node.
+Pagehub hosts single-file HTML artifacts. One Go executable provides the CLI, LAN pages, token-authenticated MCP, and macOS/Linux background management. Installation and use do not depend on Python or Node.
 
 - `cmd/pagehub`: entry point; `internal/cli`: commands, exit codes, JSON output, and diagnostics.
 - `internal/server`: HTTP, MCP, embedded dashboard, storage, revisions, patches, and logging.
@@ -41,7 +41,7 @@ For documentation-only changes, check links, examples, and the current interface
 - MCP create requires `created_by`; update/patch require `updated_by`, as caller-reported `model-name / reasoning-effort`. Creation records only the creator; `updated_by` is absent until a successful update/patch (revision 2+); preserve the creator on later writes. Failed writes change neither attribution nor revision. Legacy missing fields stay unknown; never infer a model.
 - New pages and legacy metadata start at revision 1. Successful updates/patches increment once. Update revision checking is optional; do not keep historical copies.
 - Stage complete content and metadata before publishing. Preserve interrupted-write recovery and concurrency consistency. Remain compatible with existing `page.json`; never delete or migrate user pages merely to reorganize code.
-- Pages and dashboard allow LAN access. MCP requires loopback, valid Host/Origin, and a token. Generate the token once and reuse it; never hard-code or print it.
+- Pages and dashboard allow LAN access. MCP accepts local and remote requests with any active Bearer token from the local token registry or the legacy token file; do not restrict source IP, Host, or Origin. Preserve the original single token as default; named device tokens coexist and can be rotated/revoked independently without affecting others. Reuse each token until explicit rotation/revocation. Never hard-code it; only explicit token generate/show/rotate commands may print it for copying.
 - Preserve escaped dashboard titles, refresh/cache consistency, and bounded log rotation. Logs must not contain HTML, Authorization headers, or tokens.
 - Keep the macOS user LaunchAgent and Linux user systemd unit. Do not replace it with a system daemon, root service, or disabled firewall. Failed upgrades restore the previous executable and configuration; uninstall keeps data by default.
 - Verify CLI success, failure, and repeated execution. Validate client configuration, detect concurrent changes, and preserve unrelated services.
@@ -52,7 +52,7 @@ For interface changes, update typed input/output, schemas, descriptions, annotat
 
 Keep English as the default documentation language and update the corresponding `.zh-CN.md` documents in the same change. Legal license texts and dependency license notices retain their authoritative originals.
 
-Use temporary directories and test tokens. Send management credentials only to loopback; LAN checks carry no credentials. Rebuild after changing the embedded dashboard.
+Use temporary directories and test tokens. Keep local management clients pinned to loopback. LAN MCP tests use isolated instances and temporary test tokens; LAN page checks carry no credentials. Rebuild after changing the embedded dashboard.
 
 Replace the user's installed service only when the task calls for an upgrade. Build and validate first; afterward check health, existing content/token/revision persistence, and LAN access. All clients share one service.
 

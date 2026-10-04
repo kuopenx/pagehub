@@ -2,18 +2,14 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/kuopenx/pagehub/internal/buildinfo"
-	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 )
@@ -28,7 +24,8 @@ func Serve(ctx context.Context, dataDir string, port int) error {
 	logger := &rotatingLog{path: filepath.Join(dataDir, "pagehub.log")}
 	defer logger.Close()
 	log.SetOutput(logger)
-	token, err := LoadToken(filepath.Join(dataDir, "token"))
+	tokenPath := filepath.Join(dataDir, "token")
+	_, err = LoadToken(tokenPath)
 	if err != nil {
 		return err
 	}
@@ -36,7 +33,7 @@ func Serve(ctx context.Context, dataDir string, port int) error {
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Handler: NewApp(store, token, port), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second}
+	srv := &http.Server{Handler: newApp(store, func(candidate string) bool { return AcceptToken(tokenPath, candidate) }, port), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second}
 	log.Printf("pagehub %s ready on port %d; %d pages loaded", version, port, store.Count())
 	return serveHTTP(ctx, srv, listener, 5*time.Second)
 }
@@ -65,40 +62,6 @@ func serveHTTP(ctx context.Context, srv *http.Server, listener net.Listener, gra
 		return shutdownErr
 	}
 	return err
-}
-func LoadToken(path string) (string, error) {
-	b, err := os.ReadFile(path)
-	if err == nil {
-		t := strings.TrimSpace(string(b))
-		if len(t) != 64 {
-			return "", fmt.Errorf("invalid management token file")
-		}
-		if _, err := hex.DecodeString(t); err != nil {
-			return "", fmt.Errorf("invalid management token file")
-		}
-		return t, nil
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-	var random [32]byte
-	if _, err := rand.Read(random[:]); err != nil {
-		return "", err
-	}
-	t := hex.EncodeToString(random[:])
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return "", err
-	}
-	_, err = io.WriteString(f, t+"\n")
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err != nil {
-		return "", err
-	}
-	return t, closeErr
 }
 
 // Keep at most two small log files. No access logs or submitted HTML are logged.

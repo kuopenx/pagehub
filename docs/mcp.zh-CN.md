@@ -2,7 +2,21 @@
 
 [English](mcp.md) · [简体中文](mcp.zh-CN.md)
 
-通过兼容 MCP 的客户端连接本机 Pagehub 服务。工具参数直接包含 HTML 文本，不是文件路径。标题可重复，所有操作使用服务器生成的 UUID。
+通过本机或局域网内兼容 MCP 的客户端连接 Pagehub 服务。工具参数直接包含 HTML 文本，不是文件路径。标题可重复，所有操作使用服务器生成的 UUID。
+
+## 连接
+
+在 Pagehub 主机上使用 `http://127.0.0.1:8765/_mcp`；同一局域网内的其他设备使用 `http://<服务器局域网IPv4>:8765/_mcp`。在 MCP 客户端中配置 HTTP 请求头：
+
+```json
+{"Authorization":"Bearer <服务器令牌>"}
+```
+
+原令牌保留在 `<数据目录>/token`，默认是 `~/.pagehub/token`，名称为 `default` 并继续有效。新增设备令牌保存在私密的 `<数据目录>/tokens.json`。在服务器上执行 `pagehub token generate --name phone` 生成设备令牌，或用 `pagehub token show --name phone` 查看当前值，私下复制到该客户端配置。只有显式 token generate/show/rotate 命令会输出令牌。所有有效令牌均拥有全部六个工具的权限，每台设备可以使用不同令牌。缺失或错误令牌返回 HTTP 401，无需维护来源 IP、Host 或 Origin 白名单。
+
+`pagehub connect` 仍用于配置 Pagehub 主机上的客户端；远程客户端手动配置。在远程客户端上使用返回的 `page.lan_urls` 打开页面；`page.url` 和 `dashboard_url` 使用 loopback，只能在 Pagehub 主机上打开。浏览器应用跨 origin 调用 MCP 仍需处理浏览器 CORS；此改动不添加 CORS 响应头。
+
+生成、查看、更换和废弃令牌见[令牌维护](../README.zh-CN.md#管理-mcp-令牌)。使用 token list 列出名称和状态，不显示秘密值。更换或废弃只影响使用指定令牌的客户端，其他令牌照常使用；省略 --name 则维护原默认令牌。
 
 ## 创建
 
@@ -60,4 +74,4 @@
 
 只接受包含 `<html>` 元素的完整、非空 UTF-8 HTML 文本。支持内嵌 CSS、JavaScript、SVG 和 data URL，不接受资源包、文件路径、URL 导入、PDF、Markdown 或 ZIP。输入 schema 拒绝额外属性和不支持的媒体类型。
 
-信任边界见 [SECURITY.zh-CN.md](../SECURITY.zh-CN.md)。认证凭据只用于 loopback 管理请求，不用于 LAN 页面 URL。
+信任边界见 [SECURITY.zh-CN.md](../SECURITY.zh-CN.md)。认证凭据只通过目标 MCP endpoint 的 Authorization 头发送，不放入页面 URL 或 HTML。

@@ -2,7 +2,21 @@
 
 [English](mcp.md) · [简体中文](mcp.zh-CN.md)
 
-Connect to the local Pagehub service through a compatible MCP client. Tool arguments contain actual HTML text, not filesystem paths. Titles may repeat; all operations use the server-generated UUID.
+Connect to Pagehub through a compatible MCP client on the same computer or LAN. Tool arguments contain actual HTML text, not filesystem paths. Titles may repeat; all operations use the server-generated UUID.
+
+## Connection
+
+Use `http://127.0.0.1:8765/_mcp` on the Pagehub host, or `http://<server-LAN-IPv4>:8765/_mcp` from another device on the same LAN. Configure the MCP client's HTTP headers:
+
+```json
+{"Authorization":"Bearer <server-token>"}
+```
+
+The original token is stored in `<data-dir>/token` (by default `~/.pagehub/token`) and remains valid as `default`. Additional device tokens are stored in private `<data-dir>/tokens.json`. Run `pagehub token generate --name phone` on the server to create a device token, or `pagehub token show --name phone` to copy its current value privately into that client configuration. Only explicit token generate/show/rotate commands output credentials. All active tokens have access to all six tools; each device may use a different token. Missing or incorrect tokens return HTTP 401. No source-IP, Host, or Origin allowlist is required.
+
+`pagehub connect` continues to configure clients on the Pagehub host; configure remote clients manually. On remote clients, use a returned `page.lan_urls` link to open a page; `page.url` and `dashboard_url` use loopback and work only on the Pagehub host. Browser applications calling MCP across origins still need browser CORS handling; this change does not add CORS headers.
+
+See [token maintenance](../README.md#manage-mcp-tokens) for generation, display, rotation, and revocation. Use `token list` for names and states without secrets. Rotation or revocation affects only clients using that selected token; other tokens continue working. Omit `--name` to manage the original default token.
 
 ## Create
 
@@ -60,4 +74,4 @@ Existing clients must send these new required parameters; reconnect or refresh t
 
 Only complete nonempty UTF-8 HTML text containing an `<html>` element is accepted. Inline CSS, JavaScript, SVG and data URLs are supported. No asset bundles, filesystem paths, imported URLs, PDF, Markdown or ZIP. Input schemas reject additional properties and unsupported media types.
 
-See [SECURITY.md](../SECURITY.md) for the trust model. Authentication credentials are used only for loopback management requests, never LAN page URLs.
+See [SECURITY.md](../SECURITY.md) for the trust model. Send authentication credentials only in the Authorization header to the intended MCP endpoint, never in page URLs or HTML.

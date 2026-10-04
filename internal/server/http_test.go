@@ -192,38 +192,98 @@ func TestMCPAndHTTPIntegration(t *testing.T) {
 	}
 }
 
-func TestManagementIsolation(t *testing.T) {
-	_, h, port := testServer(t)
+// Exercise the complete handler over TCP: SDK localhost protection must not
+// reintroduce a Host restriction after the token middleware accepts a request.
+func TestMCPBearerAuthentication(t *testing.T) {
+	_, h, _ := testServer(t)
 	for _, tc := range []struct {
-		token, origin, host string
-		status              int
+		name, authorization, query string
+		status                     int
 	}{
-		{"", "", "", 401}, {"test-token", "http://evil.example", "", 403}, {"test-token", "", "evil.example", 403},
+		{"missing", "", "", http.StatusUnauthorized},
+		{"wrong", "Bearer wrong-token", "", http.StatusUnauthorized},
+		{"wrong scheme", "Basic test-token", "", http.StatusUnauthorized},
+		{"missing scheme", "test-token", "", http.StatusUnauthorized},
+		{"query token", "", "?token=test-token", http.StatusUnauthorized},
+		{"valid", "Bearer test-token", "", http.StatusOK},
 	} {
-		r, _ := http.NewRequest("POST", h.URL+"/_mcp", strings.NewReader(`{}`))
-		if tc.token != "" {
-			r.Header.Set("Authorization", "Bearer "+tc.token)
-		}
-		r.Header.Set("Origin", tc.origin)
-		if tc.host != "" {
-			r.Host = tc.host
-		}
-		resp, err := http.DefaultClient.Do(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resp.Body.Close()
-		if resp.StatusCode != tc.status {
-			t.Errorf("status %d want %d", resp.StatusCode, tc.status)
+		t.Run(tc.name, func(t *testing.T) {
+			r, err := http.NewRequest("POST", h.URL+"/_mcp"+tc.query, strings.NewReader(mcpInitializeRequest))
+			if err != nil {
+				t.Fatal(err)
+			}
+			r.Host = "pagehub.example:8765"
+			r.Header.Set("Origin", "https://client.example")
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Accept", "application/json, text/event-stream")
+			r.Header.Set("Authorization", tc.authorization)
+			resp, err := http.DefaultClient.Do(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != tc.status {
+				t.Fatalf("status %d want %d", resp.StatusCode, tc.status)
+			}
+			if tc.status == http.StatusUnauthorized {
+				if resp.Header.Get("WWW-Authenticate") != "Bearer" {
+					t.Fatal("missing Bearer challenge")
+				}
+			} else {
+				assertMCPInitialized(t, resp.Body)
+			}
+		})
+	}
+}
+
+const mcpInitializeRequest = `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"pagehub-auth-test","version":"1"}}}`
+
+func assertMCPInitialized(t *testing.T, body io.Reader) {
+	t.Helper()
+	var response struct {
+		Result struct {
+			ServerInfo *mcp.Implementation `json:"serverInfo"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(body).Decode(&response); err != nil || response.Result.ServerInfo == nil || response.Result.ServerInfo.Name != "pagehub" {
+		t.Fatalf("MCP initialization failed: %+v, %v", response, err)
+	}
+}
+
+func TestMCPRemoteAddresses(t *testing.T) {
+	s, err := OpenStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := NewApp(s, "test-token", 8765)
+	for _, address := range []string{"127.0.0.1:1234", "192.168.31.99:1234", "[fd00::2]:1234"} {
+		for _, authorization := range []string{"", "Bearer wrong-token", "Bearer test-token"} {
+			r := httptest.NewRequest("POST", "http://pagehub.example:8765/_mcp", strings.NewReader(mcpInitializeRequest))
+			r.RemoteAddr = address
+			r.Header.Set("Authorization", authorization)
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Accept", "application/json, text/event-stream")
+			r.Header.Set("Origin", "null")
+			w := httptest.NewRecorder()
+			app.ServeHTTP(w, r)
+			if authorization != "Bearer test-token" {
+				if w.Code != http.StatusUnauthorized {
+					t.Fatalf("%s: unauthorized status %d", address, w.Code)
+				}
+			} else {
+				if w.Code != http.StatusOK {
+					t.Fatalf("%s: authorized status %d", address, w.Code)
+				}
+				assertMCPInitialized(t, w.Body)
+			}
 		}
 	}
-	request := httptest.NewRequest("POST", "http://127.0.0.1:8765/_mcp", nil)
-	request.RemoteAddr = "192.168.31.99:1234"
-	request.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
-	managementOnly("test-token", port, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("LAN reached MCP handler") })).ServeHTTP(w, request)
-	if w.Code != 403 {
-		t.Fatal("LAN management allowed")
+	r := httptest.NewRequest("POST", "http://pagehub.example:8765/_mcp", nil)
+	r.Header.Set("Authorization", "Bearer ")
+	NewApp(s, "", 8765).ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatal("empty configured token must reject every request")
 	}
 }
 

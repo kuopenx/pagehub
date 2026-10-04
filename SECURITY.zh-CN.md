@@ -14,7 +14,7 @@
 
 Pagehub 用于可信局域网上的可信 HTML。公开页面和 Dashboard 没有登录。提交的 JavaScript 可以执行，所有页面目前共享同一 origin；不可信页面可能读取该 origin 上的其他公开页面。Pagehub 不承诺租户或内容隔离。
 
-MCP 管理要求持久化 Bearer token、loopback 请求及合法 Host/Origin。不要把令牌发送到 LAN 地址，不要用公开代理暴露管理 endpoint，也不要把令牌放进 HTML artifact。客户端配置和数据目录属于本机私密文件。
+MCP 管理只校验请求中的 Bearer token 是否在本机私密令牌列表或旧令牌文件中有效。本机与远程客户端持有令牌即可使用全部工具，包括更新和删除；不限制来源 IP、Host 或 Origin。用于自己的可信局域网。HTTP 不加密令牌；公网部署需要 HTTPS 等加密传输。令牌只通过目标 MCP endpoint 的 Authorization 头发送，不放入页面 URL、查询参数或 HTML artifact。客户端配置和数据目录属于本机私密文件。只有显式本地 CLI 命令 token generate、token show 和 token rotate 会输出令牌；Dashboard、MCP 工具、日志和常规命令输出不包含令牌。设备令牌彼此独立，权限相同，共享同一个页面存储；名称只是标签，不是经过认证的设备身份。新增设备令牌不改写原默认令牌。更换或废弃其中一个令牌后，其他令牌继续有效，旧令牌的后续请求立即被拒绝，无需重启服务；已经通过认证的进行中操作可能完成。废弃状态在 Setup、重启和升级后保持，直到显式生成或更换令牌。
 
 Pagehub 的 doctor 和验收客户端只向配置的数字 loopback 地址、端口及 MCP 路径发送凭据，禁用 HTTP 重定向和环境代理。
 

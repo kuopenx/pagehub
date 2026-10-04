@@ -33,18 +33,22 @@ type Environment struct {
 	Open                   func(context.Context, string) error
 }
 type options struct {
-	dir, clientFile, label string
-	port                   int
-	json                   bool
+	dir, clientFile, label, tokenName string
+	port                              int
+	json                              bool
 }
 type result struct {
-	Command      string          `json:"command"`
-	Version      string          `json:"version,omitempty"`
-	Message      string          `json:"message,omitempty"`
-	DashboardURL string          `json:"dashboard_url,omitempty"`
-	LANURLs      []string        `json:"lan_urls,omitempty"`
-	Status       *service.Status `json:"status,omitempty"`
-	Checks       []Check         `json:"checks,omitempty"`
+	Command      string             `json:"command"`
+	Version      string             `json:"version,omitempty"`
+	Message      string             `json:"message,omitempty"`
+	DashboardURL string             `json:"dashboard_url,omitempty"`
+	LANURLs      []string           `json:"lan_urls,omitempty"`
+	Status       *service.Status    `json:"status,omitempty"`
+	Checks       []Check            `json:"checks,omitempty"`
+	Token        string             `json:"token,omitempty"`
+	TokenState   string             `json:"token_state,omitempty"`
+	TokenName    string             `json:"token_name,omitempty"`
+	Tokens       []server.TokenInfo `json:"tokens,omitempty"`
 }
 type Check struct {
 	Name   string `json:"name"`
@@ -61,6 +65,8 @@ Commands:
   service start|stop|restart|status
   connect codex|claude           Register this service in a client configuration
   disconnect codex|claude        Remove only this endpoint's registration
+  token generate|show|status|rotate|revoke|list
+                                Manage MCP tokens (generate/show/rotate reveal the selected token)
   doctor                        Check service, HTTP, MCP and client registrations
   open                          Open the dashboard (always prints its URL)
   version                       Print version and build information
@@ -71,6 +77,7 @@ Options:
   --port PORT                   Override saved/default port (8765)
   --service-name NAME           Override saved/default service name
   --config-file FILE            connect/disconnect: override client configuration path
+  --name NAME                   token: select a device token (default: default)
   --json                        Structured output; errors on stderr; nonzero on failure
   --help                        Show help
 
@@ -109,7 +116,7 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		command = "serve"
 		rest = args
 	} // Legacy 0.2 LaunchAgent flags.
-	if command == "service" || command == "connect" || command == "disconnect" {
+	if command == "service" || command == "connect" || command == "disconnect" || command == "token" {
 		if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
 			role = rest[0]
 			rest = rest[1:]
@@ -122,6 +129,7 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 	fs.IntVar(&o.port, "port", 0, "Port override")
 	fs.StringVar(&o.label, "service-name", "", "Service name override")
 	fs.StringVar(&o.clientFile, "config-file", "", "Client configuration override")
+	fs.StringVar(&o.tokenName, "name", "", "Token name (token commands only)")
 	fs.BoolVar(&o.json, "json", false, "JSON output")
 	fs.Usage = func() { fmt.Fprint(out, help) }
 	if err := fs.Parse(rest); err != nil {
@@ -134,13 +142,17 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		fmt.Fprintln(errOut, "unexpected arguments")
 		return 2
 	}
-	allowed := map[string]bool{"serve": true, "setup": true, "service": true, "connect": true, "disconnect": true, "doctor": true, "open": true, "version": true, "uninstall": true}
+	allowed := map[string]bool{"serve": true, "setup": true, "service": true, "connect": true, "disconnect": true, "token": true, "doctor": true, "open": true, "version": true, "uninstall": true}
 	if !allowed[command] {
 		fmt.Fprintln(errOut, "unknown command:", command)
 		return 2
 	}
 	if o.clientFile != "" && command != "connect" && command != "disconnect" {
 		fmt.Fprintln(errOut, "--config-file is only valid for connect/disconnect")
+		return 2
+	}
+	if o.tokenName != "" && command != "token" {
+		fmt.Fprintln(errOut, "--name is only valid for token commands")
 		return 2
 	}
 	portSet := false
@@ -179,6 +191,10 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 	if err != nil {
 		fmt.Fprintln(errOut, err)
 		return 2
+	}
+	// Credential maintenance does not depend on service availability or settings.
+	if command == "token" {
+		return runToken(role, o, out, errOut)
 	}
 	settings, err := config.Load(o.dir)
 	if err != nil {
@@ -266,13 +282,17 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, env Environm
 		}
 		token := ""
 		if command == "connect" {
-			var b []byte
-			b, err = os.ReadFile(filepath.Join(o.dir, "token"))
+			token, err = server.ReadToken(filepath.Join(o.dir, "token"))
+			if errors.Is(err, os.ErrNotExist) {
+				err = errors.New("management token missing; run setup, serve, or pagehub token generate first")
+			}
 			if err != nil {
-				err = errors.New("management token missing; run setup or serve first")
 				break
 			}
-			token = strings.TrimSpace(string(b))
+			if token == "" {
+				err = errors.New("management token revoked; run pagehub token generate first")
+				break
+			}
 		}
 		err = (clients.Client{Name: role, Path: path, URL: url + "_mcp", Token: token}).Change(command == "connect")
 		r.Message = command + " " + role + " completed; other registrations preserved"
@@ -388,12 +408,15 @@ func diagnose(ctx context.Context, m service.Manager, home, url string) []Check 
 		detail = "version=" + h.Version
 	}
 	checks = append(checks, Check{"http", healthOK, detail})
-	b, err := os.ReadFile(filepath.Join(m.DataDir, "token"))
+	token, err := server.ReadToken(filepath.Join(m.DataDir, "token"))
 	if err != nil {
-		checks = append(checks, Check{"mcp", false, "token missing"})
+		checks = append(checks, Check{"mcp", false, "token missing or invalid; run pagehub token generate or rotate"})
 		return checks
 	}
-	token := strings.TrimSpace(string(b))
+	if token == "" {
+		checks = append(checks, Check{"mcp", false, "default token revoked; generate default for local client/doctor checks"})
+		return checks
+	}
 	client := mcp.NewClient(&mcp.Implementation{Name: "pagehub-doctor", Version: buildinfo.Version}, nil)
 	mcpHTTP, err := localhttp.NewClient(url+"_mcp", token, 5*time.Second)
 	if err != nil {

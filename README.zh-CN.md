@@ -4,9 +4,9 @@
 
 **把 AI 生成的单文件 HTML，变成手机上可以直接打开的页面。**
 
-一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和本机 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
+一个 Go 二进制、一个后台进程、一个端口，提供 LAN 页面、Dashboard 和令牌认证的 MCP。Codex、Claude Code 等客户端直接提交 HTML 或局部修改，无需知道页面保存在什么位置。
 
-适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.5.4**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.5.4.zh-CN.md)。
+适合自用 artifact、SVG 动画、交互演示和可视化。页面允许同名，使用 UUID 区分；没有休眠、到期、数量或业务大小配额。当前版本 **0.6.0**，采用 [MIT](LICENSE) 许可。[发布说明](docs/releases/v0.6.0.zh-CN.md)。
 
 ## 安装
 
@@ -61,6 +61,7 @@ go install github.com/kuopenx/pagehub/cmd/pagehub@latest
 | `pagehub service start/stop/restart/status` | 管理用户级后台服务 |
 | `pagehub connect codex/claude` | 注册本服务，保留其他客户端配置 |
 | `pagehub disconnect codex/claude` | 移除指向本服务的 Pagehub 注册 |
+| `pagehub token generate/show/status/rotate/revoke/list` | 管理独立设备令牌；generate/show/rotate 只输出指定令牌供复制 |
 | `pagehub doctor` | 检查后台、HTTP、认证 MCP、客户端配置和 LAN 地址 |
 | `pagehub open` | 打开 Dashboard；无浏览器时仍输出链接 |
 | `pagehub version` | 程序版本、提交和构建时间 |
@@ -81,6 +82,28 @@ pagehub serve --port 8766 --data-dir "$(mktemp -d)"
 `connect` 为本机 HTTP 地址配置 Authorization 头；令牌不出现在命令输出中。同名 MCP 指向其他地址时拒绝覆盖。配置文件权限设为 `0600`，已有客户端会话可能需要重新打开，以刷新六个工具。
 
 自定义端口或目录时，为 `setup`、`connect` 使用同一个 `--data-dir`，连接地址会读取保存的端口。配置路径默认为 `~/.codex/config.toml` 和 `~/.claude.json`；也可通过 `--config-file` 指定客户端使用的其他配置。
+
+远程客户端使用独立设备令牌和 LAN MCP 地址，参见[连接说明](docs/mcp.zh-CN.md#连接)。无需维护 IP 或域名白名单。
+
+### 管理 MCP 令牌
+
+在 Pagehub 主机上执行：
+
+```sh
+pagehub token generate --name laptop  # 为设备生成令牌，输出后可复制
+pagehub token generate --name phone   # 生成另一个独立令牌
+pagehub token list                    # 列出名称和状态，不显示令牌值
+pagehub token show --name phone       # 只显示这个设备的令牌
+pagehub token status --name phone     # active、revoked 或 missing
+pagehub token rotate --name phone     # 只更换这个令牌，输出新值
+pagehub token revoke --name phone     # 立即废弃这个令牌，其他令牌照常使用
+```
+
+原来的唯一令牌保留在 `<数据目录>/token`，名称为 `default`，不迁移、不替换。省略 `--name` 的命令继续维护该令牌；`connect` 仍为本机客户端配置它。新增设备令牌保存在同目录下的私密 `tokens.json`。名称为 1–64 个 ASCII 字母、数字、点、下划线或连字符，以字母或数字开头；`default` 保留给原令牌。所有有效令牌具有相同的六个工具权限，共享同一批页面。
+
+`generate` 在同名令牌有效时返回原值，废弃后生成新值；`rotate` 和 `revoke` 只影响指定名称，包括 `default`。废弃状态在 Setup 或重启后仍保留，新增设备令牌废弃后会从列表存储中移除其秘密值。后续请求立即生效，无需重启，不影响页面访问。设备名只是标签，持有令牌即可使用它。
+
+更换后只更新使用该令牌的客户端。更换 `default` 后，本机客户端重新执行 `pagehub connect codex` / `pagehub connect claude`，必要时重新打开会话。`doctor` 检查默认令牌，因此默认令牌废弃时会报告问题，即使设备令牌仍然可用。令牌命令支持 `--data-dir` 和 `--json`，服务停止时也能使用。macOS 可用 `pagehub token show --name phone | pbcopy` 复制指定令牌。
 
 ### 升级与卸载
 
@@ -103,11 +126,11 @@ pagehub uninstall
 brew uninstall pagehub   # 如果用 Homebrew 安装
 ```
 
-页面数据不会自动删除。管理令牌首次随机生成后持久化，重启与升级不会使其失效。
+页面数据不会自动删除。管理令牌首次随机生成后持久化，重启与升级不会使其失效，除非显式更换或废弃。
 
 ## MCP 接口
 
-HTTP 与 MCP 共用端口，管理地址为 `http://127.0.0.1:8765/_mcp`。使用官方 Go SDK 的无状态 Streamable HTTP，支持 SDK 接受的协议版本；客户端负责协商。
+HTTP 与 MCP 共用端口，本机管理地址为 `http://127.0.0.1:8765/_mcp`；同一局域网内的其他设备使用 `http://<电脑局域网IPv4>:8765/_mcp`，并携带一个有效的 Bearer token。使用官方 Go SDK 的无状态 Streamable HTTP，支持 SDK 接受的协议版本；客户端负责协商。
 
 | 工具 | 参数 | 行为 |
 | --- | --- | --- |
@@ -126,13 +149,13 @@ HTTP 与 MCP 共用端口，管理地址为 `http://127.0.0.1:8765/_mcp`。使�
 
 只托管完整 UTF-8 单文件 HTML，可内嵌 CSS、JS、SVG、data URL。不接受路径、URL 导入、PDF、ZIP 或独立资源文件；外部引用仍可能由浏览器请求，但服务器不会下载或代管。
 
-Dashboard 和页面允许 LAN 访问，无登录；MCP 管理仅接受 loopback、合法 Host/Origin 和 Bearer token。HTML 可以执行 JavaScript，所有页面目前共享同一 origin，因此只用于可信内容和可信局域网。详细边界及私密漏洞反馈见 [SECURITY.md](SECURITY.zh-CN.md)。
+Dashboard 和页面允许 LAN 访问，无登录；MCP 管理只校验有效的 Bearer token，不限制来源 IP、Host 或 Origin；持有令牌即可使用全部六个工具。HTML 可以执行 JavaScript，所有页面目前共享同一 origin，因此只用于可信内容和可信局域网。详细边界及私密漏洞反馈见 [SECURITY.md](SECURITY.zh-CN.md)。
 
 内存索引只保留元数据；正文按需读取，操作期间暂时占用内存。实际容量受磁盘和内存限制。日志约 1 MiB 轮转，最多两个文件，不记录 HTML 或认证信息。
 
 ## 存储与排查
 
-默认数据目录 `~/.pagehub` 包含 `settings.json`、`token`、日志、`bin/pagehub` 和 `pages/<uuid>/{index.html,page.json}`。目录由服务管理，MCP 调用者不需要访问它。
+默认数据目录 `~/.pagehub` 包含 `settings.json`、`token`、可选的 `tokens.json`、`token.lock`、日志、`bin/pagehub` 和 `pages/<uuid>/{index.html,page.json}`。目录由服务管理，MCP 调用者不需要访问它。
 
 先运行 `pagehub doctor --json`：
 
@@ -140,8 +163,7 @@ Dashboard 和页面允许 LAN 访问，无登录；MCP 管理仅接受 loopback�
 | --- | --- |
 | 服务未启动 | `pagehub service status`；`pagehub service start`；检查 `pagehub.log` |
 | 本机可访问、手机不可访问 | 同一 Wi-Fi、正确 IPv4、入站防火墙许可（macOS 系统设置或 Linux 防火墙） |
-| MCP 401 | 用同一数据目录重新执行 `pagehub connect <client>` |
-| MCP 403 | 使用本机管理 URL，检查 Host/Origin；LAN 仅用于页面访问 |
+| MCP 401 | 本机客户端用同一数据目录重新执行 `pagehub connect <client>`；远程客户端检查 Authorization 头和服务器令牌 |
 | 新工具未出现 | 重新打开客户端会话 |
 | 补丁匹配失败或版本冲突 | 重新读取页面，检查上下文与最新修订号 |
 

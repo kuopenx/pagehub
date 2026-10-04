@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.md) · [简体中文](CONTRIBUTING.zh-CN.md)
 
-Pagehub 使用一个 Go 进程和本机 MCP 托管自包含 HTML artifact。改动应围绕这个用途。
+Pagehub 使用一个 Go 进程和令牌认证的 MCP 托管自包含 HTML artifact。改动应围绕这个用途。
 
 ## 开发
 

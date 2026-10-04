@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"html/template"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -35,52 +32,32 @@ type App struct {
 }
 
 func NewApp(store *Store, token string, port int) *App {
+	return newApp(store, func(candidate string) bool {
+		return token != "" && subtle.ConstantTimeCompare([]byte(candidate), []byte(token)) == 1
+	}, port)
+}
+
+func newApp(store *Store, authorize func(string) bool, port int) *App {
 	server := newMCP(store, port)
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{
 		Stateless: true, JSONResponse: true, MaxRequestBodyBytes: -1,
+		// Bearer tokens are the access boundary, including LAN clients.
+		DisableLocalhostProtection: true,
 	})
-	return &App{store: store, mcp: managementOnly(token, port, handler), port: port}
+	return &App{store: store, mcp: bearerOnly(authorize, handler), port: port}
 }
 
-func managementOnly(token string, port int, next http.Handler) http.Handler {
+func bearerOnly(authorize func(string) bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		ip := net.ParseIP(host)
-		if err != nil || ip == nil || !ip.IsLoopback() {
-			http.Error(w, "MCP management is local-only", http.StatusForbidden)
-			return
-		}
-		if !localAuthority(r.Host, port) {
-			http.Error(w, "invalid management host", http.StatusForbidden)
-			return
-		}
-		if origin := r.Header.Get("Origin"); origin != "" {
-			u, err := url.Parse(origin)
-			if err != nil || u.Scheme != "http" || !localAuthority(u.Host, port) || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
-				http.Error(w, "invalid origin", http.StatusForbidden)
-				return
-			}
-		}
-		expected := "Bearer " + token
-		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(expected)) != 1 {
+		// Check current credentials on every request for immediate revocation.
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if !ok || token == "" || !authorize(token) {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "management token required", http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func localAuthority(authority string, port int) bool {
-	host, p, err := net.SplitHostPort(authority)
-	if err != nil || p != strconv.Itoa(port) {
-		return false
-	}
-	if strings.EqualFold(host, "localhost") {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

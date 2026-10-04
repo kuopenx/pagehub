@@ -4,9 +4,9 @@
 
 **Turn AI-generated, single-file HTML into pages you can open on your phone.**
 
-One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a local MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
+One Go program, one background process, and one port serve a LAN dashboard, HTML pages, and a token-authenticated MCP endpoint. Codex, Claude Code, and other MCP clients submit HTML or precise edits directly, without knowing where files are stored.
 
-Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.5.4**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.5.4.md).
+Use it for personal artifacts, SVG animations, interactive demos, and visualizations. Titles may repeat; server-generated UUIDs identify pages. There is no sleep, expiration, page-count quota, or application-level size quota. Current version: **0.6.0**. License: [MIT](LICENSE). [Release notes](docs/releases/v0.6.0.md).
 
 ## Installation
 
@@ -61,6 +61,7 @@ Ask your MCP client to create a page, then open the returned URL or find it on t
 | `pagehub service start/stop/restart/status` | Manage the user background service |
 | `pagehub connect codex/claude` | Register Pagehub while preserving other client configuration |
 | `pagehub disconnect codex/claude` | Remove the Pagehub registration pointing to this service |
+| `pagehub token generate/show/status/rotate/revoke/list` | Manage independent device tokens; generate/show/rotate output only the selected token |
 | `pagehub doctor` | Check the service, HTTP, authenticated MCP, client configuration, and LAN addresses |
 | `pagehub open` | Open the dashboard; still print its URL when no browser is available |
 | `pagehub version` | Print version, commit, and build date |
@@ -81,6 +82,28 @@ pagehub serve --port 8766 --data-dir "$(mktemp -d)"
 `connect` configures an Authorization header for the local HTTP endpoint without printing the token. It refuses to overwrite an MCP registration with the same name pointing elsewhere. Client configuration permissions are set to `0600`. Reopen existing client sessions if needed to discover the six tools.
 
 For a custom data directory or port, use the same `--data-dir` for `setup` and `connect`; the endpoint uses the saved port. Default configuration paths are `~/.codex/config.toml` and `~/.claude.json`. Use `--config-file` if your client reads another file.
+
+Remote clients can use independent device tokens with the LAN MCP URL; see [connection instructions](docs/mcp.md#connection). No IP or domain allowlist is required.
+
+### Manage MCP tokens
+
+Run these commands on the Pagehub host:
+
+```sh
+pagehub token generate --name laptop  # Create a device token and print it for copying
+pagehub token generate --name phone   # Create another independent token
+pagehub token list                    # Names and states, without secrets
+pagehub token show --name phone       # Show only this device's token
+pagehub token status --name phone     # active, revoked, or missing
+pagehub token rotate --name phone     # Replace only this token and print the new value
+pagehub token revoke --name phone     # Immediately reject this token; others keep working
+```
+
+The original single token stays in `<data-dir>/token` as `default`, without migration or replacement. Commands without `--name` still manage that default token; `connect` still configures local clients with it. Additional device tokens live in private `tokens.json` beside it. Names are 1–64 ASCII letters/digits/dots/underscores/hyphens, starting with a letter or digit; `default` is reserved for the original credential. All active tokens have the same six-tool permissions and share the same pages.
+
+`generate` reuses an active token with that name; after revocation it creates a fresh value. `rotate` and `revoke` affect only the selected name, including `default`. Revocation remains effective across setup/restarts, and removes the named secret from the registry. These changes apply to subsequent requests immediately, without restarting the service or changing page access. Device names are labels: anyone holding a token can use it.
+
+Update only clients using a replaced token. When replacing `default`, rerun `pagehub connect codex` / `pagehub connect claude` for local clients; reopen their sessions if needed. `doctor` checks the default credential, so it reports a problem when that credential is revoked even if device tokens still work. Token commands support `--data-dir` and `--json`, and work while the service is stopped. On macOS, `pagehub token show --name phone | pbcopy` copies that token to the clipboard.
 
 ### Upgrade and uninstall
 
@@ -105,11 +128,11 @@ pagehub uninstall
 brew uninstall pagehub   # if installed with Homebrew
 ```
 
-Page data is never deleted automatically. The management token is randomly generated once and persists across restarts and upgrades.
+Page data is never deleted automatically. The management token is randomly generated once and persists across restarts and upgrades until explicitly rotated or revoked.
 
 ## MCP interface
 
-HTTP and MCP share one port. The management endpoint is `http://127.0.0.1:8765/_mcp`. Pagehub uses the official Go SDK with stateless Streamable HTTP; clients negotiate a protocol version accepted by that SDK.
+HTTP and MCP share one port. The local management endpoint is `http://127.0.0.1:8765/_mcp`; other devices on the LAN can use `http://<computer-LAN-IPv4>:8765/_mcp` with an active Bearer token. Pagehub uses the official Go SDK with stateless Streamable HTTP; clients negotiate a protocol version accepted by that SDK.
 
 | Tool | Arguments | Behavior |
 | --- | --- | --- |
@@ -128,13 +151,13 @@ Each page records `created_by` and `updated_by`, shown in MCP responses and the 
 
 Only complete, single-file UTF-8 HTML is hosted. Inline CSS, JavaScript, SVG, and data URLs are supported. Paths, URL imports, PDF, ZIP, and separate assets are not accepted. Browsers may still request external references; Pagehub does not download or manage them.
 
-Pages and the dashboard are accessible over the LAN without login. MCP management requires loopback, a valid Host/Origin, and a Bearer token. HTML can execute JavaScript, and all pages currently share one origin. Use trusted content on a trusted LAN. See [SECURITY.md](SECURITY.md) for the trust boundary and private vulnerability reporting.
+Pages and the dashboard are accessible over the LAN without login. MCP management requires only an active Bearer token; source IP, Host, and Origin are not restricted. Anyone with the token can use all six tools. HTML can execute JavaScript, and all pages currently share one origin. Use trusted content on a trusted LAN. See [SECURITY.md](SECURITY.md) for the trust boundary and private vulnerability reporting.
 
 The in-memory index contains metadata only. Content is read on demand and temporarily occupies memory during operations. Disk and memory still impose practical limits. Logs rotate at approximately 1 MiB, with at most two files; they contain neither HTML nor authentication information.
 
 ## Storage and troubleshooting
 
-The default `~/.pagehub` directory contains `settings.json`, `token`, logs, `bin/pagehub`, and `pages/<uuid>/{index.html,page.json}`. Pagehub manages these files; MCP callers do not need to access them.
+The default `~/.pagehub` directory contains `settings.json`, `token`, optional `tokens.json`, `token.lock`, logs, `bin/pagehub`, and `pages/<uuid>/{index.html,page.json}`. Pagehub manages these files; MCP callers do not need to access them.
 
 Start with `pagehub doctor --json`:
 
@@ -142,8 +165,7 @@ Start with `pagehub doctor --json`:
 | --- | --- |
 | Service is not running | `pagehub service status`, `pagehub service start`, and `pagehub.log` |
 | Local access works but phone access fails | Same Wi-Fi, correct IPv4, and incoming firewall permission (macOS Settings or Linux firewall) |
-| MCP returns 401 | Rerun `pagehub connect <client>` with the same data directory |
-| MCP returns 403 | Use the local management URL and check Host/Origin; LAN URLs are for pages |
+| MCP returns 401 | For local clients, rerun `pagehub connect <client>` with the same data directory; for remote clients, check the Authorization header and server token |
 | New tools are missing | Reopen the client session |
 | Patch match or revision conflict | Read the page again and check context and the latest revision |
 

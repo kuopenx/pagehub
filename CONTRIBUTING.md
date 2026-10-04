@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.md) · [简体中文](CONTRIBUTING.zh-CN.md)
 
-Pagehub hosts self-contained HTML artifacts with one Go process and a local MCP interface. Keep changes focused on that purpose.
+Pagehub hosts self-contained HTML artifacts with one Go process and a token-authenticated MCP interface. Keep changes focused on that purpose.
 
 ## Development
 
