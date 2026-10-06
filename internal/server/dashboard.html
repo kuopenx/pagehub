@@ -414,7 +414,7 @@ dialog::backdrop{background:hsl(30 10% 4%/.4);-webkit-backdrop-filter:blur(6px);
     if (q) params.set('q', q);
     if (sortKey !== 'updated') params.set('sort', sortKey);
     const qs = params.toString();
-    history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    history.replaceState(history.state, '', qs ? '?' + qs : location.pathname);
     refreshBtn.href = '/' + (q ? '?q=' + encodeURIComponent(q) : '');
   }
   function onSearch() {
@@ -600,14 +600,28 @@ dialog::backdrop{background:hsl(30 10% 4%/.4);-webkit-backdrop-filter:blur(6px);
   // ---- start ----
   enhance(document);
   if (grid) setSort(sortKey);
-  // Reload starts at the top; back/forward returns to the previous list position.
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-  const nav = performance.getEntriesByType('navigation')[0];
-  try {
-    const y = Number(sessionStorage.getItem('pagehub.scroll'));
-    if (nav && nav.type === 'back_forward' && y > 0) window.scrollTo(0, y);
-  } catch {}
-  window.addEventListener('pagehide', () => { try { sessionStorage.setItem('pagehub.scroll', String(window.scrollY)); } catch {} });
+  // Each dashboard history entry owns its position. Native restoration remains
+  // available when saving history state is blocked. pageshow also covers BFCache,
+  // where this script does not run again and navigation.type stays unchanged.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'auto';
+  function savePosition() {
+    try {
+      history.replaceState({ ...history.state, pagehubScroll: window.scrollY }, '');
+    } catch {}
+  }
+  function restorePosition(event) {
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (!event.persisted && nav && nav.type === 'reload' && !location.hash) {
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (!event.persisted && (!nav || nav.type !== 'back_forward')) return;
+    if (location.hash) return;
+    const y = history.state && history.state.pagehubScroll;
+    if (typeof y === 'number' && Number.isFinite(y) && y >= 0) window.scrollTo(0, y);
+  }
+  window.addEventListener('pagehide', savePosition);
+  window.addEventListener('pageshow', restorePosition);
   if (grid && input.value.trim()) {
     busy = true;
     load().then(doc => { if (!structural(doc)) applyDoc(doc, true); }).catch(() => {}).finally(() => { busy = false; });
